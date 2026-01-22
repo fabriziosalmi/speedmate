@@ -21,9 +21,6 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
 
-      - name: Configure WPCS
-        run: vendor/bin/phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs
-
       - name: Run PHPCS
         run: vendor/bin/phpcs
 
