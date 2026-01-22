@@ -41,7 +41,7 @@ final class Plugin
 
     private function register_hooks(): void
     {
-        add_action('init', [$this, 'register_settings']);
+        add_action('init', [$this, 'register_settings'], 10, 0);
 
         if (is_admin()) {
             Admin::instance();

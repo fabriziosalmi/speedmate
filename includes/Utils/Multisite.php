@@ -70,6 +70,15 @@ final class Multisite
         return self::is_multisite() && current_user_can('manage_network_options');
     }
 
+    public static function instance(): self
+    {
+        static $instance = null;
+        if (null === $instance) {
+            $instance = new self();
+        }
+        return $instance;
+    }
+
     /**
      * Flush cache for all sites in network
      */
@@ -81,7 +90,7 @@ final class Multisite
 
         $sites = get_sites(['number' => 999]);
         foreach ($sites as $site) {
-            switch_to_blog($site->blog_id);
+            switch_to_blog((int) $site->blog_id);
             \SpeedMate\Cache\StaticCache::instance()->flush_all();
             restore_current_blog();
         }

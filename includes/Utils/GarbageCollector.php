@@ -67,12 +67,17 @@ final class GarbageCollector
 
     public function run(): void
     {
+        $this->cleanup();
+
+        Logger::log('info', 'garbage_collector_ran');
+    }
+
+    public function cleanup(): void
+    {
         $this->delete_expired_transients();
         $this->delete_spam_comments();
         $this->delete_post_revisions();
         $this->delete_orphaned_postmeta();
-
-        Logger::log('info', 'garbage_collector_ran');
     }
 
     private function delete_expired_transients(): void

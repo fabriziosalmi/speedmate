@@ -48,6 +48,22 @@ final class Filesystem
         return (bool) $wp_filesystem->put_contents($path, $contents, FS_CHMOD_FILE);
     }
 
+    public static function get_contents(string $path): string
+    {
+        global $wp_filesystem;
+
+        if (!self::init()) {
+            return '';
+        }
+
+        if (!$wp_filesystem->exists($path)) {
+            return '';
+        }
+
+        $contents = $wp_filesystem->get_contents($path);
+        return is_string($contents) ? $contents : '';
+    }
+
     public static function exists(string $path): bool
     {
         global $wp_filesystem;
