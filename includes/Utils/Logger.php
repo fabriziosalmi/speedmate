@@ -1,31 +1,49 @@
 <?php
+/**
+ * Logging utility class
+ *
+ * @package SpeedMate
+ */
 
 declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
-final class Logger
-{
-    public static function enabled(): bool
-    {
-        $enabled = (bool) Settings::get_value('logging_enabled', false);
+/**
+ * Logger class for structured logging
+ */
+final class Logger {
+	/**
+	 * Check if logging is enabled
+	 *
+	 * @return bool
+	 */
+	public static function enabled(): bool {
+		$enabled = (bool) Settings::get_value( 'logging_enabled', false );
 
-        return (bool) apply_filters('speedmate_logging_enabled', $enabled);
-    }
+		return (bool) apply_filters( 'speedmate_logging_enabled', $enabled );
+	}
 
-    public static function log(string $level, string $event, array $context = []): void
-    {
-        if (!self::enabled()) {
-            return;
-        }
+	/**
+	 * Log a message
+	 *
+	 * @param string $level   Log level.
+	 * @param string $event   Event name.
+	 * @param array  $context Context data.
+	 * @return void
+	 */
+	public static function log( string $level, string $event, array $context = array() ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
 
-        $payload = [
-            'level' => $level,
-            'event' => $event,
-            'context' => $context,
-            'ts' => gmdate('c'),
-        ];
+		$payload = array(
+			'level'   => $level,
+			'event'   => $event,
+			'context' => $context,
+			'ts'      => gmdate( 'c' ),
+		);
 
-        error_log(wp_json_encode($payload));
-    }
+		error_log( wp_json_encode( $payload ) );
+	}
 }

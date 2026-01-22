@@ -1,33 +1,59 @@
 <?php
+/**
+ * Settings management class
+ *
+ * @package SpeedMate
+ */
 
 declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
-final class Settings
-{
-    private static ?array $settings = null;
+/**
+ * Settings utility class
+ */
+final class Settings {
+	/**
+	 * Cached settings
+	 *
+	 * @var array|null
+	 */
+	private static ?array $settings = null;
 
-    public static function get(): array
-    {
-        if (self::$settings === null) {
-            $value = get_option(SPEEDMATE_OPTION_KEY, []);
-            self::$settings = is_array($value) ? $value : [];
-        }
+	/**
+	 * Get all settings
+	 *
+	 * @return array
+	 */
+	public static function get(): array {
+		if ( null === self::$settings ) {
+			$value          = get_option( SPEEDMATE_OPTION_KEY, array() );
+			self::$settings = is_array( $value ) ? $value : array();
+		}
 
-        return self::$settings;
-    }
+		return self::$settings;
+	}
 
-    public static function refresh(): void
-    {
-        self::$settings = null;
-        self::get();
-    }
+	/**
+	 * Refresh settings cache
+	 *
+	 * @return void
+	 */
+	public static function refresh(): void {
+		self::$settings = null;
+		self::get();
+	}
 
-    public static function get_value(string $key, $default = null)
-    {
-        $settings = self::get();
+	/**
+	 * Get single setting value
+	 *
+	 * @param string $key     Setting key.
+	 * @param mixed  $fallback Default value.
+	 * @return mixed
+	 */
+	public static function get_value( string $key, $fallback = null ) {
+		$settings = self::get();
 
-        return $settings[$key] ?? $default;
-    }
+		return $settings[ $key ] ?? $fallback;
+	}
 }
