@@ -221,11 +221,6 @@ Access metrics in:
 2. Check that dynamic content is within the shortcode wrapper
 3. Flush cache to regenerate pages with updated fragments
 
-## Project Status**v0.3.0**
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and [QUICK-REFERENCE-v0.3.0.md](QUICK-REFERENCE-v0.3.0.md) for quick reference guide
-See [CHANGELOG.md](CHANGELOG.md) for version history and [VERSION](VERSION) for semantic versioning details.
-
 ## Contributing
 Pull requests welcome. Please ensure:
 - PHPUnit tests pass (`composer test`)
