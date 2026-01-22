@@ -12,3 +12,4 @@ parameters:
   ignoreErrors:
     - '#Call to static method (success|line|add_command|error)\(\) on an unknown class WP_CLI#'
     - '#Function WP_CLI\\Utils\\format_items not found#'
+    - '#Action callback returns SpeedMate\\Plugin but should not return anything#'

@@ -263,7 +263,7 @@ final class StaticCache
         }
 
         $meta_content = Filesystem::get_contents($meta_path);
-        if ($meta_content === false) {
+        if ($meta_content === '') {
             return false;
         }
 

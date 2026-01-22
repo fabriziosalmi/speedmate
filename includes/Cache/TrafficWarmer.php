@@ -163,8 +163,12 @@ final class TrafficWarmer
     private function get_request_path(): string
     {
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        $path = strtok($uri, '?') ?: '/';
+        $path = strtok($uri, '?');
 
-        return $path === '' ? '/' : $path;
+        if ($path === false || $path === '') {
+            return '/';
+        }
+
+        return $path;
     }
 }
