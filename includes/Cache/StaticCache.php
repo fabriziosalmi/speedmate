@@ -8,7 +8,6 @@ use SpeedMate\Utils\Filesystem;
 use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Logger;
-use SpeedMate\Utils\Container;
 
 final class StaticCache
 {
@@ -21,9 +20,12 @@ final class StaticCache
 
     public static function instance(): StaticCache
     {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
+        // For test injection - only available when Container is loaded
+        if (class_exists('\SpeedMate\Utils\Container')) {
+            $override = \SpeedMate\Utils\Container::get(self::class);
+            if ($override instanceof self) {
+                return $override;
+            }
         }
 
         if (self::$instance === null) {

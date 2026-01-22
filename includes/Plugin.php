@@ -60,6 +60,16 @@ final class Plugin
         \SpeedMate\Cache\DynamicFragments::instance();
         \SpeedMate\Utils\GarbageCollector::instance();
         \SpeedMate\API\BatchEndpoints::instance();
+        
+        // Register WP-CLI commands
+        if (defined('WP_CLI') && WP_CLI) {
+            \WP_CLI::add_command('speedmate', \SpeedMate\CLI\Commands::class);
+        }
+        
+        // Initialize multisite support
+        if (is_multisite()) {
+            \SpeedMate\Utils\Multisite::instance();
+        }
     }
 
     public function register_settings(): void

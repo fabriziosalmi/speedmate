@@ -25,6 +25,12 @@ define('SPEEDMATE_CACHE_DIR', WP_CONTENT_DIR . '/cache/speedmate');
 
 define('SPEEDMATE_MIN_PHP', '7.4');
 
+// Load PSR-4 autoloader first
+$autoload_path = SPEEDMATE_PATH . 'vendor/autoload.php';
+if (file_exists($autoload_path)) {
+    require_once $autoload_path;
+}
+
 require_once SPEEDMATE_PATH . 'includes/Plugin.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';

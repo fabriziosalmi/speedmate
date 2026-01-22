@@ -105,11 +105,6 @@ final class Commands
         \WP_CLI::line('Homepage TTL: ' . ($settings['cache_ttl_homepage'] ?? 0) . ' seconds');
         \WP_CLI::line('Cached Pages: ' . $cache->get_cached_pages_count());
         \WP_CLI::line('Cache Size: ' . size_format($cache->get_cache_size_bytes()));
-        \WP_CLI::line('Logging: ' . ($settings['logging_enabled'] ? 'enabled' : 'disabled'));
+        \WP_CLI::line('Logging: ' . (($settings['logging_enabled'] ?? false) ? 'enabled' : 'disabled'));
     }
-}
-
-// Register commands if WP-CLI is available
-if (defined('WP_CLI') && WP_CLI) {
-    \WP_CLI::add_command('speedmate', Commands::class);
 }
