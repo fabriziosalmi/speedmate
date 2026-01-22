@@ -1,6 +1,5 @@
 includes:
   - vendor/szepeviktor/phpstan-wordpress/extension.neon
-  - vendor/szepeviktor/phpstan-wordpress/stubs.neon
 
 parameters:
   level: 5
