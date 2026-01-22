@@ -165,10 +165,10 @@ final class TrafficWarmer
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         $path = strtok($uri, '?');
 
-        if ($path === false || $path === '') {
+        if ($path === false) {
             return '/';
         }
 
-        return $path;
+        return $path === '' ? '/' : $path;
     }
 }
