@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace SpeedMate\Media;
 
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Container;
+
 final class MediaOptimizer
 {
     private static ?MediaOptimizer $instance = null;
@@ -14,6 +17,11 @@ final class MediaOptimizer
 
     public static function instance(): MediaOptimizer
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -159,8 +167,8 @@ final class MediaOptimizer
             return false;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         return in_array($mode, ['safe', 'beast'], true);
     }

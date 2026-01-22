@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace SpeedMate\Cache;
 
+use SpeedMate\Utils\RateLimiter;
+use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Container;
+use SpeedMate\Utils\CspNonce;
+
 final class DynamicFragments
 {
     private static ?DynamicFragments $instance = null;
@@ -16,6 +22,11 @@ final class DynamicFragments
 
     public static function instance(): DynamicFragments
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -90,12 +101,13 @@ final class DynamicFragments
             "fetch(" . wp_json_encode($endpoint) . "+id+suffix,{credentials:'same-origin'})\n" .
             ".then(function(r){return r.text();})\n" .
             ".then(function(html){if(html){el.outerHTML=html;}})\n" .
-            ".catch(function(){});\n" .
+            ".catch(function(){el.style.display='';});\n" .
             "}\n" .
             "});\n" .
             "})();";
 
-        echo '<script>' . $script . '</script>' . "\n";
+        $nonce_attr = CspNonce::attr();
+        echo '<script' . $nonce_attr . '>' . $script . '</script>' . "\n";
     }
 
     public function register_routes(): void
@@ -121,13 +133,20 @@ final class DynamicFragments
 
     public function handle_fragment(\WP_REST_Request $request): \WP_REST_Response
     {
+        if (!$this->allow_request('fragment')) {
+            Logger::log('warning', 'rate_limited', ['endpoint' => 'fragment']);
+            return new \WP_REST_Response('Rate limited', 429);
+        }
+
         $id = (string) $request->get_param('id');
         if ($id === '') {
+            Logger::log('warning', 'invalid_payload', ['endpoint' => 'fragment']);
             return new \WP_REST_Response('Not found', 404);
         }
 
         $content = self::$fragments[$id] ?? get_transient($this->transient_key($id));
         if (!is_string($content) || $content === '') {
+            Logger::log('info', 'fragment_not_found', ['endpoint' => 'fragment']);
             return new \WP_REST_Response('Not found', 404);
         }
 
@@ -140,6 +159,11 @@ final class DynamicFragments
 
     public function handle_fragment_bust(\WP_REST_Request $request): \WP_REST_Response
     {
+        if (!$this->allow_request('fragment_bust')) {
+            Logger::log('warning', 'rate_limited', ['endpoint' => 'fragment_bust']);
+            return new \WP_REST_Response(['error' => 'rate_limited'], 429);
+        }
+
         $cart_hash = isset($_COOKIE['woocommerce_cart_hash']) ? sanitize_text_field((string) $_COOKIE['woocommerce_cart_hash']) : '';
         $session_key = 'wp_woocommerce_session_' . COOKIEHASH;
         $session = isset($_COOKIE[$session_key]) ? sanitize_text_field((string) $_COOKIE[$session_key]) : '';
@@ -172,9 +196,17 @@ final class DynamicFragments
             return false;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         return in_array($mode, ['safe', 'beast'], true);
+    }
+
+    private function allow_request(string $scope): bool
+    {
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $key = 'speedmate_rl_' . $scope . '_' . md5($ip);
+
+        return RateLimiter::allow($key, 120, 60);
     }
 }

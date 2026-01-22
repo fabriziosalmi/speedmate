@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<ruleset name="SpeedMate">
+    <description>PHPCS rules for SpeedMate.</description>
+    <file>includes</file>
+    <file>speedmate.php</file>
+
+    <arg name="basepath" value="."/>
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+
+    <rule ref="WordPress"/>
+    <rule ref="PSR12"/>
+</ruleset>

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use SpeedMate\Perf\BeastMode;
+use SpeedMate\Utils\Settings;
 
 final class BeastModeTest extends WP_UnitTestCase
 {
@@ -14,6 +15,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'beast_blacklist' => [],
             'beast_apply_all' => true,
         ]);
+        Settings::refresh();
 
         $html = '<script src="https://example.com/app.js"></script>';
         $out = BeastMode::instance()->rewrite_scripts($html);
@@ -30,6 +32,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'beast_blacklist' => [],
             'beast_apply_all' => true,
         ]);
+        Settings::refresh();
 
         $html = '<script src="https://example.com/app.js"></script>';
         $out = BeastMode::instance()->rewrite_scripts($html);
@@ -45,6 +48,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'beast_blacklist' => ['example.com/app.js'],
             'beast_apply_all' => true,
         ]);
+        Settings::refresh();
 
         $html = '<script src="https://example.com/app.js"></script>';
         $out = BeastMode::instance()->rewrite_scripts($html);

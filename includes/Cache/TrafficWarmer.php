@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace SpeedMate\Cache;
 
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Container;
+
 final class TrafficWarmer
 {
     private const TRANSIENT_KEY = 'speedmate_hits';
@@ -17,6 +21,11 @@ final class TrafficWarmer
 
     public static function instance(): TrafficWarmer
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -71,8 +80,16 @@ final class TrafficWarmer
 
     public function run(): void
     {
+        if ($this->has_lock()) {
+            Logger::log('info', 'warm_skipped', ['reason' => 'lock']);
+            return;
+        }
+
+        $this->set_lock();
+
         $hits = get_transient(self::TRANSIENT_KEY);
         if (!is_array($hits) || $hits === []) {
+            $this->release_lock();
             return;
         }
 
@@ -97,6 +114,7 @@ final class TrafficWarmer
         }
 
         delete_transient(self::TRANSIENT_KEY);
+        $this->release_lock();
     }
 
     private function is_trackable_request(): bool
@@ -114,10 +132,25 @@ final class TrafficWarmer
             return false;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         return $mode !== 'disabled';
+    }
+
+    private function has_lock(): bool
+    {
+        return (bool) get_transient('speedmate_warm_lock');
+    }
+
+    private function set_lock(): void
+    {
+        set_transient('speedmate_warm_lock', 1, 5 * MINUTE_IN_SECONDS);
+    }
+
+    private function release_lock(): void
+    {
+        delete_transient('speedmate_warm_lock');
     }
 
     private function get_request_path(): string

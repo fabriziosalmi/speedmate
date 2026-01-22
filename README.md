@@ -43,12 +43,17 @@ Run the full test suite (PHPUnit + E2E):
 ## Configuration
 SpeedMate is designed to work out of the box. Advanced users can optionally edit the Beast Mode whitelist/blacklist in the admin screen.
 
+### Hardening options
+- Structured JSON logging (opt‑in)
+- CSP nonce for inline scripts (opt‑in)
+- REST rate limiting and idempotency protection are enabled by default
+
 ## 🌟 Why SpeedMate is Different (The "Zero Anxiety" Promise)
 Unlike other plugins that require a PhD to configure or can break your site unexpectedly, SpeedMate is built on **trust mechanics**:
 
 1. **Safety First (Preview Mode):** Test Beast Mode safely as an admin before enabling it for visitors. Zero downtime risk.
 2. **Self‑Healing Cache:** Automatically detects plugin updates or theme changes and flushes only the necessary cache fragments. No more broken CSS after updates.
-3. **The "Time Machine" Dashboard:** We don’t just show milliseconds. SpeedMate calculates the cumulative **human time saved** for your visitors.
+3. **The "Time Machine" Dashboard:** It don’t just show milliseconds. SpeedMate calculates the cumulative **human time saved** for your visitors.
 4. **Database Self‑Cleaning:** A silent weekly housekeeper that removes expired transients and safe bloat, keeping your site fast long‑term.
 
 ## Testing
@@ -56,18 +61,27 @@ Unlike other plugins that require a PhD to configure or can break your site unex
 - PHPUnit integration tests: [tests/phpunit.xml](tests/phpunit.xml)
 - Playwright E2E tests: [tests/e2e](tests/e2e)
 
+## Static analysis
+Run locally with Composer:
+- `composer install`
+- `composer phpcs`
+- `composer phpstan`
+
 ### Git pre-push hook
 Enable the hook to run tests before every push:
 - `git config core.hooksPath .githooks`
 
 ## Status
-Active development. PRs and issues welcome.
+Active development. Current version: v0.1.0. PRs and issues welcome.
+
+## Versioning
+See [VERSION](VERSION) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Repository
 https://github.com/fabriziosalmi/speedmate
 
 ## Security
-Report vulnerabilities via private disclosure (email to be added).
+Report vulnerabilities via private disclosure (fabrizio.salmi@gmail.com).
 
 ## License
 MIT License. See [LICENSE](LICENSE).

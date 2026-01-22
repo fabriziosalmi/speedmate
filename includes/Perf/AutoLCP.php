@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace SpeedMate\Perf;
 
 use SpeedMate\Utils\Stats;
+use SpeedMate\Utils\RateLimiter;
+use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\CspNonce;
+use SpeedMate\Utils\Container;
 
 final class AutoLCP
 {
@@ -18,6 +23,11 @@ final class AutoLCP
 
     public static function instance(): AutoLCP
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -58,19 +68,33 @@ final class AutoLCP
             return new \WP_REST_Response(['status' => 'disabled'], 200);
         }
 
+        if (!$this->allow_request('lcp')) {
+            Logger::log('warning', 'rate_limited', ['endpoint' => 'lcp']);
+            return new \WP_REST_Response(['status' => 'rate_limited'], 429);
+        }
+
+        $idempotency = (string) $request->get_header('X-Idempotency-Key');
+        if ($idempotency !== '' && $this->is_duplicate($idempotency)) {
+            Logger::log('info', 'idempotent_replay', ['endpoint' => 'lcp']);
+            return new \WP_REST_Response(['status' => 'ok'], 200);
+        }
+
         $image_url = (string) $request->get_param('image_url');
         $page_url = (string) $request->get_param('page_url');
 
         if ($image_url === '' || $page_url === '') {
+            Logger::log('warning', 'invalid_payload', ['endpoint' => 'lcp']);
             return new \WP_REST_Response(['status' => 'invalid'], 400);
         }
 
         if (!$this->is_same_host($page_url)) {
+            Logger::log('warning', 'forbidden_host', ['endpoint' => 'lcp']);
             return new \WP_REST_Response(['status' => 'forbidden'], 403);
         }
 
         $post_id = url_to_postid($page_url);
         if (!$post_id) {
+            Logger::log('info', 'post_not_found', ['endpoint' => 'lcp']);
             return new \WP_REST_Response(['status' => 'not_found'], 404);
         }
 
@@ -145,15 +169,36 @@ final class AutoLCP
             "}catch(e){}\n" .
             "})();";
 
-        echo '<script>' . $script . '</script>' . "\n";
+        $nonce_attr = CspNonce::attr();
+        echo '<script' . $nonce_attr . '>' . $script . '</script>' . "\n";
     }
 
     private function is_enabled(): bool
     {
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         return in_array($mode, ['safe', 'beast'], true);
+    }
+
+    private function allow_request(string $scope): bool
+    {
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $key = 'speedmate_rl_' . $scope . '_' . md5($ip);
+
+        return RateLimiter::allow($key, 60, 60);
+    }
+
+    private function is_duplicate(string $idempotency_key): bool
+    {
+        $key = 'speedmate_idem_' . md5($idempotency_key);
+        if (get_transient($key)) {
+            return true;
+        }
+
+        set_transient($key, 1, 10 * MINUTE_IN_SECONDS);
+
+        return false;
     }
 
     private function is_same_host(string $url): bool

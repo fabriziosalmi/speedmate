@@ -6,6 +6,9 @@ namespace SpeedMate\Cache;
 
 use SpeedMate\Utils\Filesystem;
 use SpeedMate\Utils\Stats;
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Container;
 
 final class StaticCache
 {
@@ -18,6 +21,11 @@ final class StaticCache
 
     public static function instance(): StaticCache
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -75,11 +83,14 @@ final class StaticCache
 
         $path = $this->get_cache_path();
         if ($path === '') {
+            Logger::log('warning', 'cache_path_empty');
             return;
         }
 
         $contents = apply_filters('speedmate_cache_contents', $contents);
-        Filesystem::put_contents($path, $contents);
+        if (!Filesystem::put_contents($path, $contents)) {
+            Logger::log('warning', 'cache_write_failed', ['path' => $path]);
+        }
 
         if ($this->is_warm_request()) {
             Stats::increment('warmed_pages');
@@ -355,8 +366,8 @@ final class StaticCache
             return false;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         if ($mode === 'disabled') {
             return false;

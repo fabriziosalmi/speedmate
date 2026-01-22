@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
+use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Container;
+
 final class GarbageCollector
 {
     private const CRON_HOOK = 'speedmate_garbage_collect';
@@ -16,6 +19,11 @@ final class GarbageCollector
 
     public static function instance(): GarbageCollector
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -63,6 +71,8 @@ final class GarbageCollector
         $this->delete_spam_comments();
         $this->delete_post_revisions();
         $this->delete_orphaned_postmeta();
+
+        Logger::log('info', 'garbage_collector_ran');
     }
 
     private function delete_expired_transients(): void

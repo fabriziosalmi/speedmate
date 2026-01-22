@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
+use SpeedMate\Utils\Logger;
+
 final class Filesystem
 {
     private static bool $initialized = false;
@@ -21,6 +23,10 @@ final class Filesystem
         $result = WP_Filesystem();
         if ($result) {
             self::$initialized = true;
+        }
+
+        if (!$result) {
+            Logger::log('warning', 'filesystem_init_failed');
         }
 
         return $result;

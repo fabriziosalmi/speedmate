@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace SpeedMate\Perf;
 
+use SpeedMate\Utils\CspNonce;
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Container;
+
 final class BeastMode
 {
     private static ?BeastMode $instance = null;
@@ -24,6 +28,11 @@ final class BeastMode
 
     public static function instance(): BeastMode
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -76,7 +85,8 @@ final class BeastMode
             "for(var i=0;i<events.length;i++){window.addEventListener(events[i],load,{once:true,passive:true});}\n" .
             "})();";
 
-        echo '<script>' . $script . '</script>' . "\n";
+        $nonce_attr = CspNonce::attr();
+        echo '<script' . $nonce_attr . '>' . $script . '</script>' . "\n";
     }
 
     public function rewrite_scripts(string $html): string
@@ -185,16 +195,16 @@ final class BeastMode
 
     private function get_whitelist(): array
     {
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $rules = is_array($settings) ? ($settings['beast_whitelist'] ?? []) : [];
+        $settings = Settings::get();
+        $rules = $settings['beast_whitelist'] ?? [];
 
         return is_array($rules) ? $rules : [];
     }
 
     private function get_blacklist(): array
     {
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $rules = is_array($settings) ? ($settings['beast_blacklist'] ?? []) : [];
+        $settings = Settings::get();
+        $rules = $settings['beast_blacklist'] ?? [];
 
         return is_array($rules) ? $rules : [];
     }
@@ -205,8 +215,8 @@ final class BeastMode
             return false;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
 
         if ($mode !== 'beast') {
             return false;
@@ -217,14 +227,15 @@ final class BeastMode
 
     private function is_preview_allowed(): bool
     {
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $apply_all = is_array($settings) ? (bool) ($settings['beast_apply_all'] ?? false) : false;
+        $settings = Settings::get();
+        $apply_all = (bool) ($settings['beast_apply_all'] ?? false);
 
         if ($apply_all) {
             return true;
         }
 
-        if (current_user_can('manage_options')) {
+        $cap = (string) apply_filters('speedmate_admin_capability', 'manage_options');
+        if (current_user_can($cap)) {
             return true;
         }
 

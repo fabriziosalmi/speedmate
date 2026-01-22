@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace SpeedMate\Admin;
 
 use SpeedMate\Cache\StaticCache;
+use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Container;
 
 final class Admin
 {
@@ -16,6 +18,11 @@ final class Admin
 
     public static function instance(): Admin
     {
+        $override = Container::get(self::class);
+        if ($override instanceof self) {
+            return $override;
+        }
+
         if (self::$instance === null) {
             self::$instance = new self();
             self::$instance->register_hooks();
@@ -38,7 +45,7 @@ final class Admin
         add_menu_page(
             __('SpeedMate', 'speedmate'),
             __('SpeedMate', 'speedmate'),
-            'manage_options',
+            $this->get_capability(),
             'speedmate',
             [$this, 'render_page'],
             'dashicons-dashboard',
@@ -56,6 +63,8 @@ final class Admin
                 'beast_whitelist' => [],
                 'beast_blacklist' => [],
                 'beast_apply_all' => false,
+                'logging_enabled' => false,
+                'csp_nonce' => false,
             ],
         ]);
     }
@@ -74,6 +83,8 @@ final class Admin
         $whitelist = [];
         $blacklist = [];
         $apply_all = false;
+        $logging_enabled = false;
+        $csp_nonce = false;
 
         if (is_array($input)) {
             if (isset($input['beast_whitelist'])) {
@@ -85,6 +96,12 @@ final class Admin
             if (isset($input['beast_apply_all'])) {
                 $apply_all = (bool) $input['beast_apply_all'];
             }
+            if (isset($input['logging_enabled'])) {
+                $logging_enabled = (bool) $input['logging_enabled'];
+            }
+            if (isset($input['csp_nonce'])) {
+                $csp_nonce = (bool) $input['csp_nonce'];
+            }
         }
 
         return [
@@ -92,20 +109,24 @@ final class Admin
             'beast_whitelist' => $whitelist,
             'beast_blacklist' => $blacklist,
             'beast_apply_all' => $apply_all,
+            'logging_enabled' => $logging_enabled,
+            'csp_nonce' => $csp_nonce,
         ];
     }
 
     public function render_page(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can($this->get_capability())) {
             return;
         }
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
-        $whitelist = is_array($settings) ? ($settings['beast_whitelist'] ?? []) : [];
-        $blacklist = is_array($settings) ? ($settings['beast_blacklist'] ?? []) : [];
-        $apply_all = is_array($settings) ? (bool) ($settings['beast_apply_all'] ?? false) : false;
+        $settings = Settings::get();
+        $mode = $settings['mode'] ?? 'disabled';
+        $whitelist = $settings['beast_whitelist'] ?? [];
+        $blacklist = $settings['beast_blacklist'] ?? [];
+        $apply_all = (bool) ($settings['beast_apply_all'] ?? false);
+        $logging_enabled = (bool) ($settings['logging_enabled'] ?? false);
+        $csp_nonce = (bool) ($settings['csp_nonce'] ?? false);
         $whitelist_text = is_array($whitelist) ? implode("\n", $whitelist) : '';
         $blacklist_text = is_array($blacklist) ? implode("\n", $blacklist) : '';
         $stats = get_option(SPEEDMATE_STATS_KEY, []);
@@ -208,6 +229,24 @@ final class Admin
                             <?php endif; ?>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Structured logging', 'speedmate'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[logging_enabled]" value="1" <?php checked($logging_enabled, true); ?> />
+                                <?php echo esc_html__('Enable JSON logs to PHP error_log.', 'speedmate'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('CSP Nonce for inline scripts', 'speedmate'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[csp_nonce]" value="1" <?php checked($csp_nonce, true); ?> />
+                                <?php echo esc_html__('Add a CSP nonce to inline scripts (Auto‑LCP, Beast Mode).', 'speedmate'); ?>
+                            </label>
+                        </td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
@@ -217,7 +256,7 @@ final class Admin
 
     public function register_admin_bar($wp_admin_bar): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can($this->get_capability())) {
             return;
         }
 
@@ -230,7 +269,7 @@ final class Admin
 
     public function handle_flush_cache(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can($this->get_capability())) {
             wp_die(__('Unauthorized.', 'speedmate'));
         }
 
@@ -244,19 +283,16 @@ final class Admin
 
     public function handle_apply_beast_all(): void
     {
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can($this->get_capability())) {
             wp_die(__('Unauthorized.', 'speedmate'));
         }
 
         check_admin_referer('speedmate_apply_beast_all');
 
-        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
-        if (!is_array($settings)) {
-            $settings = [];
-        }
-
+        $settings = Settings::get();
         $settings['beast_apply_all'] = true;
         update_option(SPEEDMATE_OPTION_KEY, $settings, false);
+        Settings::refresh();
 
         wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=speedmate'));
         exit;
@@ -274,6 +310,11 @@ final class Admin
         $url = admin_url('admin-post.php?action=speedmate_apply_beast_all');
 
         return wp_nonce_url($url, 'speedmate_apply_beast_all');
+    }
+
+    private function get_capability(): string
+    {
+        return (string) apply_filters('speedmate_admin_capability', 'manage_options');
     }
 
     private function format_bytes(int $bytes): string

@@ -34,6 +34,11 @@ final class Plugin
     private function load_dependencies(): void
     {
         require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/Settings.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/Container.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/RateLimiter.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/Logger.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/CspNonce.php';
         require_once SPEEDMATE_PATH . 'includes/Utils/Stats.php';
         require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';
         require_once SPEEDMATE_PATH . 'includes/Cache/StaticCache.php';
@@ -70,6 +75,8 @@ final class Plugin
                 'beast_whitelist' => [],
                 'beast_blacklist' => [],
                 'beast_apply_all' => false,
+                'logging_enabled' => false,
+                'csp_nonce' => false,
             ], '', false);
         }
 

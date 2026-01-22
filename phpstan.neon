@@ -1,0 +1,10 @@
+includes:
+  - vendor/szepeviktor/phpstan-wordpress/extension.neon
+  - vendor/szepeviktor/phpstan-wordpress/stubs.neon
+
+parameters:
+  level: 5
+  paths:
+    - includes
+    - speedmate.php
+  treatPhpDocTypesAsCertain: false

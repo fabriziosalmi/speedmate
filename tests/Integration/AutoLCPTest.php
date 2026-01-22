@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use SpeedMate\Perf\AutoLCP;
+use SpeedMate\Utils\Settings;
 
 final class AutoLCPTest extends WP_UnitTestCase
 {
@@ -16,6 +17,7 @@ final class AutoLCPTest extends WP_UnitTestCase
         update_option(SPEEDMATE_OPTION_KEY, [
             'mode' => 'safe',
         ]);
+        Settings::refresh();
 
         $request = new WP_REST_Request('POST', '/speedmate/v1/lcp');
         $request->set_param('image_url', 'https://example.com/image.jpg');
