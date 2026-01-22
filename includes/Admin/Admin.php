@@ -260,11 +260,54 @@ final class Admin
             return;
         }
 
+        $cache = StaticCache::instance();
+        $stats = \SpeedMate\Utils\Stats::get();
+        
         $wp_admin_bar->add_node([
+            'id' => 'speedmate',
+            'title' => $this->get_admin_bar_title($cache, $stats),
+            'href' => admin_url('admin.php?page=speedmate'),
+        ]);
+
+        $wp_admin_bar->add_node([
+            'parent' => 'speedmate',
+            'id' => 'speedmate-stats',
+            'title' => sprintf(
+                'Cache: %s | Pages: %d | LCP: %d',
+                size_format($cache->get_cache_size_bytes()),
+                $cache->get_cached_pages_count(),
+                $stats['lcp_preloads'] ?? 0
+            ),
+        ]);
+
+        $wp_admin_bar->add_node([
+            'parent' => 'speedmate',
+            'id' => 'speedmate-timing',
+            'title' => sprintf(
+                'Avg: %dms cached | %dms uncached',
+                $stats['avg_cached_ms'] ?? 50,
+                $stats['avg_uncached_ms'] ?? 0
+            ),
+        ]);
+
+        $wp_admin_bar->add_node([
+            'parent' => 'speedmate',
             'id' => 'speedmate-flush-cache',
             'title' => __('Flush Cache', 'speedmate'),
             'href' => $this->get_flush_url(),
         ]);
+    }
+
+    private function get_admin_bar_title($cache, array $stats): string
+    {
+        $mode = Settings::get_value('mode', 'disabled');
+        $icon = $mode === 'beast' ? '⚡' : ($mode === 'safe' ? '🔒' : '💤');
+        
+        return sprintf(
+            '%s SpeedMate | Time Saved: %s',
+            $icon,
+            gmdate('H:i:s', (int) (($stats['time_saved_ms'] ?? 0) / 1000))
+        );
     }
 
     public function handle_flush_cache(): void

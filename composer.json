@@ -13,5 +13,10 @@
   "scripts": {
     "phpcs": "phpcs",
     "phpstan": "phpstan analyze"
+  },
+  "autoload": {
+    "psr-4": {
+      "SpeedMate\\": "includes/"
+    }
   }
 }

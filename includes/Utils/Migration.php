@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SpeedMate\Utils;
+
+/**
+ * Migration utility for SpeedMate v0.2.0
+ * Migrates stats from wp_options to custom table
+ */
+final class Migration
+{
+    /**
+     * Migrate stats from wp_options to custom table
+     * Safe to run multiple times
+     */
+    public static function migrate_stats_to_table(): bool
+    {
+        // Ensure table exists
+        Stats::create_table();
+
+        // Check if old data exists
+        $old_stats = get_option(SPEEDMATE_STATS_KEY, false);
+        if ($old_stats === false || !is_array($old_stats)) {
+            // Nothing to migrate
+            return true;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'speedmate_stats';
+        $week_key = isset($old_stats['week_key']) ? (string) $old_stats['week_key'] : gmdate('oW');
+
+        // Migrate each stat
+        $stats_to_migrate = [
+            'warmed_pages',
+            'lcp_preloads',
+            'time_saved_ms',
+            'avg_uncached_ms',
+            'avg_cached_ms',
+        ];
+
+        foreach ($stats_to_migrate as $metric) {
+            if (isset($old_stats[$metric])) {
+                $value = (int) $old_stats[$metric];
+
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "INSERT INTO {$table_name} (metric_name, metric_value, week_key)
+                        VALUES (%s, %d, %s)
+                        ON DUPLICATE KEY UPDATE metric_value = %d",
+                        $metric,
+                        $value,
+                        $week_key,
+                        $value
+                    )
+                );
+            }
+        }
+
+        // Keep old option as backup for one more week
+        update_option(SPEEDMATE_STATS_KEY . '_backup', $old_stats, false);
+
+        return true;
+    }
+
+    /**
+     * Clean up old stats from wp_options after successful migration
+     */
+    public static function cleanup_old_stats(): void
+    {
+        delete_option(SPEEDMATE_STATS_KEY);
+        delete_option(SPEEDMATE_STATS_KEY . '_backup');
+    }
+}

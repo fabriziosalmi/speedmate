@@ -1,87 +1,244 @@
 # SpeedMate
 
-SpeedMate is a 100% free, open‑source WordPress performance plugin focused on automation and a lightweight architecture. It delivers static cache, media optimizations, Beast Mode JS delay, traffic‑driven cache warming, Auto‑LCP, and dynamic fragments for WooCommerce/membership sites.
+A lightweight, zero-configuration WordPress performance plugin that delivers static HTML caching, media optimization, and advanced JavaScript deferral without complexity.
 
-## Highlights
-- Static HTML cache with smart purge
-- Auto‑generated Apache rules + Nginx copy/paste snippet
-- Safe Mode: lazy‑load + image dimension injection + GZIP
-- Beast Mode: delayed JS execution on user interaction
-- Traffic‑driven cache warming (cron)
-- Auto‑LCP learning + preload injection
-- Dynamic fragment wrapper with WooCommerce cache‑busting
+## Core Features
 
-## Requirements
-- WordPress 5.8+
-- PHP 7.4+
+### Caching System
+- **Static HTML Generation**: Full-page cache with intelligent purge on content updates
+- **TTL & Expiration**: Configurable cache lifetime per content type (homepage, posts, pages)
+- **URL Exclusion Patterns**: Wildcard-based cache exclusions for dynamic pages
+- **Server Rule Automation**: Apache `.htaccess` rules generated automatically; Nginx configuration provided for manual setup
+- **Cache Warming**: Configurable traffic-pattern analysis with scheduling options (hourly/twice-daily/daily)
+- **Dynamic Fragment Support**: Cache entire pages while keeping user-specific content dynamic using `[speedmate_dynamic]` shortcode
+- **Multisite Ready**: Per-site cache directories with network-level settings fallback
 
-## Install (dev)
-1. Clone into wp-content/plugins/speedmate
-2. Activate in WordPress admin
-3. Open SpeedMate → choose Safe or Beast Mode
+### Performance Modes
+- **Safe Mode**: Production-ready optimizations including lazy-loading, automatic image dimensions, and GZIP compression
+- **Beast Mode**: Aggressive JavaScript delay strategy that defers execution until first user interaction (click, scroll, or keypress)
 
-## Install (release ZIP)
-1. Download the latest ZIP from https://github.com/fabriziosalmi/speedmate/releases
-2. Upload in WordPress → Plugins → Add New → Upload Plugin
-3. Activate and select Safe/Beast Mode
+### Automatic Optimizations
+- **Auto-LCP Detection**: Machine learning identifies your Largest Contentful Paint element and automatically injects preload hints
+- **Critical CSS**: Automatic stylesheet deferring with critical CSS extraction
+- **WebP Conversion**: Automatic WebP image generation with browser fallback support
+- **Preload Hints**: DNS prefetch, preconnect, and resource hints for faster loading
+- **WooCommerce Integration**: Cart, checkout, and account fragments remain dynamic while product pages are cached
+- **Self-Healing Cache**: Monitors plugin and theme updates, purging only affected cache entries
 
-## Quickstart (local)
-Start the local WordPress stack:
-- `./scripts/stack-up.sh`
+### Management Tools
+- **WP-CLI Commands**: Full command-line interface (`flush`, `warm`, `stats`, `gc`, `info`)
+- **REST API**: Batch operations and cache management via REST endpoints
+- **Import/Export**: JSON-based configuration backup and restore
+- **Health Dashboard**: Real-time performance monitoring with traffic light indicators
+- **Admin Bar Metrics**: Quick performance stats in WordPress admin bar
 
-Run the full test suite (PHPUnit + E2E):
-- `./scripts/run-tests.sh`
+## Technical Requirements
+- WordPress 5.8 or higher
+- PHP 7.4 or higher
+- Apache with mod_rewrite OR Nginx with manual configuration
+- Write permissions for `.htaccess` (Apache only)
 
-## Usage
-- Safe Mode: automatic caching + media optimizations + Auto‑LCP
-- Beast Mode: all above + JS delay (configurable whitelist/blacklist)
-- Dynamic fragments: wrap PHP content with `[speedmate_dynamic]`
+## Installation
 
-## Admin shortcuts
-- Flush cache from the SpeedMate screen or WP Admin Bar
+### Development Installation
+```bash
+cd wp-content/plugins
+git clone https://github.com/fabriziosalmi/speedmate.git
+```
+Then activate via WordPress admin panel and select your performance mode.
+
+### Production Installation
+1. Download the latest release ZIP from [GitHub Releases](https://github.com/fabriziosalmi/speedmate/releases)
+2. Navigate to WordPress Admin → Plugins → Add New → Upload Plugin
+3. Upload the ZIP file and activate
+4. Configure your preferred mode in SpeedMate settings
 
 ## Configuration
-SpeedMate is designed to work out of the box. Advanced users can optionally edit the Beast Mode whitelist/blacklist in the admin screen.
 
-### Hardening options
-- Structured JSON logging (opt‑in)
-- CSP nonce for inline scripts (opt‑in)
-- REST rate limiting and idempotency protection are enabled by default
+### Performance Modes
+SpeedMate operates in two modes, selectable from the admin panel:
 
-## 🌟 Why SpeedMate is Different (The "Zero Anxiety" Promise)
-Unlike other plugins that require a PhD to configure or can break your site unexpectedly, SpeedMate is built on **trust mechanics**:
+**Safe Mode** (recommended for most sites):
+- Static HTML caching
+- Image lazy-loading with dimension injection
+- GZIP compression
+- Auto-LCP preloading
 
-1. **Safety First (Preview Mode):** Test Beast Mode safely as an admin before enabling it for visitors. Zero downtime risk.
-2. **Self‑Healing Cache:** Automatically detects plugin updates or theme changes and flushes only the necessary cache fragments. No more broken CSS after updates.
-3. **The "Time Machine" Dashboard:** It don’t just show milliseconds. SpeedMate calculates the cumulative **human time saved** for your visitors.
-4. **Database Self‑Cleaning:** A silent weekly housekeeper that removes expired transients and safe bloat, keeping your site fast long‑term.
+**Beast Mode** (advanced performance):
+- All Safe Mode features
+- JavaScript execution delay
+- Configurable script whitelist/blacklist
+- Preview mode for admin-only testing before public deployment
 
-## Testing
-- Docker WordPress stack: see [tests/README.md](tests/README.md)
-- PHPUnit integration tests: [tests/phpunit.xml](tests/phpunit.xml)
-- Playwright E2E tests: [tests/e2e](tests/e2e)
+### Beast Mode Configuration
+The Beast Mode panel allows you to:
+- **Whitelist**: Scripts that should execute immediately (e.g., `jquery-core`, `critical-analytics`)
+- **Blacklist**: Scripts to forcibly delay (overrides automatic detection)
+- **Preview Mode**: Test Beast Mode as logged-in admin without affecting visitors
 
-## Static analysis
-Run locally with Composer:
-- `composer install`
-- `composer phpcs`
-- `composer phpstan`
+### Dynamic Content Handling
+For user-specific or frequently-changing content within cached pages:
 
-### Git pre-push hook
-Enable the hook to run tests before every push:
-- `git config core.hooksPath .githooks`
+```php
+[speedmate_dynamic]
+<?php echo get_current_user_name(); ?>
+[/speedmate_dynamic]
+```
 
-## Status
-Active development. Current version: v0.1.0. PRs and issues welcome.
+Dynamic fragments are rendered on every request while the surrounding page remains cached.
 
-## Versioning
-See [VERSION](VERSION) and [CHANGELOG.md](CHANGELOG.md).
+### Security Hardening (Optional)
+Advanced security features available in settings:
 
-## Repository
-https://github.com/fabriziosalmi/speedmate
+- **Structured JSON Logging**: Machine-readable logs for SIEM integration
+- **CSP Nonce Injection**: Automatic Content Security Policy nonces for inline scripts
+- **REST API Protection**: Rate limiting (default: 60 requests/minute) and idempotency keys for state-changing operations
+
+## Cache Management
+
+### Manual Cache Clearing
+- Admin bar: Click "Flush SpeedMate Cache"
+- Settings page: "Clear All Cache" button
+- WP-CLI: `wp speedmate flush`
+- REST API: POST to `/wp-json/speedmate/v1/cache/flush`
+
+### Automatic Cache Purging
+Cache is automatically invalidated when:
+- Posts or pages are published, updated, or deleted
+- Plugins or themes are activated, deactivated, or updated
+- SpeedMate settings are modified
+- Manual purge is triggered
+
+## Development Setup
+
+### Local Stack
+Start a full WordPress development environment with Docker:
+```bash
+./scripts/stack-up.sh
+```
+This provisions WordPress, MySQL, and phpMyAdmin accessible at `localhost:8000`.
+
+### Test Execution
+Run the complete test suite:
+```bash
+./scripts/run-tests.sh
+```
+This executes:
+- PHPUnit integration tests (WordPress test framework)
+- Playwright end-to-end browser tests
+
+Individual test suites:
+```bash
+# PHPUnit only
+composer test
+
+# Playwright E2E only
+cd tests/e2e && npm test
+```
+
+### Code Quality
+Static analysis and coding standards:
+```bash
+composer install
+composer phpcs      # PHP_CodeSniffer against WordPress standards
+composer phpstan    # Static analysis at level 8
+```
+
+### Git Hooks
+Enable automatic testing before push:
+```bash
+git config core.hooksPath .githooks
+```
+The pre-push hook runs PHPUnit and blocks the push if tests fail.
+
+## Architecture
+
+### File Structure
+- `/includes/class-speedmate-cache.php` - Core caching engine
+- `/includes/class-speedmate-optimizer.php` - Media and asset optimization
+- `/includes/class-speedmate-beast-mode.php` - JavaScript delay logic
+- `/includes/class-speedmate-lcp.php` - Auto-LCP detection and injection
+- `/admin/` - Settings UI and admin functionality
+
+### Caching Strategy
+1. Request intercepted via `template_redirect` hook (priority 1)
+2. Cache key generated from URL, mobile detection, and logged-in status
+3. Cached HTML served with `X-SpeedMate-Cache: HIT` header
+4. On cache miss, output buffering captures generated HTML
+5. HTML stored in `wp-content/cache/speedmate/` with 24-hour TTL
+
+### Beast Mode Implementation
+JavaScript delay uses Mutation Observer and event delegation:
+1. All `<script>` tags (except whitelisted) receive `type="speedmate/javascript"`
+2. User interaction (click/scroll/keypress) triggers execution queue
+3. Scripts execute in original DOM order to preserve dependencies
+4. Configurable delay threshold (default: 5 seconds as fallback)
+
+## Performance Metrics
+
+SpeedMate tracks and displays:
+- Total pages cached
+- Cache hit ratio (hits / total requests)
+- Cumulative time saved (avg load time reduction × visitor count)
+- Cache size and directory statistics
+- LCP improvements before/after optimization
+- Real-time admin bar performance indicators
+
+Access metrics in:
+- SpeedMate → Dashboard
+- WordPress Admin Bar (when logged in)
+- WP-CLI: `wp speedmate stats`
+- REST API: `/wp-json/speedmate/v1/stats`
+
+## Compatibility
+
+### Known Compatible Plugins
+- WooCommerce (with dynamic fragment support)
+- Easy Digital Downloads
+- MemberPress
+- Contact Form 7
+
+### Known Incompatible Plugins
+- Other full-page caching plugins (WP Super Cache, W3 Total Cache)
+- Plugins that require real-time content on every request without fragment support
+
+## Troubleshooting
+
+### Cache Not Generating
+1. Verify `.htaccess` is writable (Apache)
+2. Check `wp-content/cache/speedmate/` directory exists and is writable
+3. Confirm no conflicting caching plugins are active
+4. Review PHP error logs for permission issues
+
+### Beast Mode Breaking Scripts
+1. Enable Preview Mode in Beast Mode settings
+2. Test as admin to identify problematic scripts
+3. Add breaking scripts to whitelist by handle or URL pattern
+4. Disable Beast Mode and report issue if whitelisting doesn't resolve
+
+### Dynamic Content Not Updating
+1. Verify `[speedmate_dynamic]` shortcode syntax
+2. Check that dynamic content is within the shortcode wrapper
+3. Flush cache to regenerate pages with updated fragments
+
+## Project Status**v0.3.0**
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and [QUICK-REFERENCE-v0.3.0.md](QUICK-REFERENCE-v0.3.0.md) for quick reference guide
+See [CHANGELOG.md](CHANGELOG.md) for version history and [VERSION](VERSION) for semantic versioning details.
+
+## Contributing
+Pull requests welcome. Please ensure:
+- PHPUnit tests pass (`composer test`)
+- Code follows WordPress standards (`composer phpcs`)
+- Static analysis passes (`composer phpstan`)
 
 ## Security
-Report vulnerabilities via private disclosure (fabrizio.salmi@gmail.com).
+Report security vulnerabilities privately to fabrizio.salmi@gmail.com. Please allow 48 hours for initial response.
 
 ## License
-MIT License. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE) for full text.
+
+## Links
+- Repository: https://github.com/fabriziosalmi/speedmate
+- Issues: https://github.com/fabriziosalmi/speedmate/issues
+- Releases: https://github.com/fabriziosalmi/speedmate/releases

@@ -48,6 +48,8 @@ final class StaticCache
     {
         self::instance()->ensure_cache_dir();
         self::instance()->write_htaccess_rules();
+        Stats::create_table();
+        \SpeedMate\Utils\Migration::migrate_stats_to_table();
     }
 
     public static function deactivate(): void
@@ -90,7 +92,16 @@ final class StaticCache
         $contents = apply_filters('speedmate_cache_contents', $contents);
         if (!Filesystem::put_contents($path, $contents)) {
             Logger::log('warning', 'cache_write_failed', ['path' => $path]);
+            return;
         }
+
+        // Write metadata file with TTL
+        $meta = [
+            'created' => time(),
+            'ttl' => $this->get_cache_ttl(),
+        ];
+        $meta_path = $path . '.meta';
+        Filesystem::put_contents($meta_path, wp_json_encode($meta));
 
         if ($this->is_warm_request()) {
             Stats::increment('warmed_pages');
@@ -234,7 +245,54 @@ final class StaticCache
             return false;
         }
 
-        return Filesystem::exists($path);
+        if (!Filesystem::exists($path)) {
+            return false;
+        }
+
+        return $this->is_cache_valid($path);
+    }
+
+    private function is_cache_valid(string $path): bool
+    {
+        $meta_path = $path . '.meta';
+        if (!Filesystem::exists($meta_path)) {
+            // No metadata means old cache file, consider invalid
+            return false;
+        }
+
+        $meta_content = Filesystem::get_contents($meta_path);
+        if ($meta_content === false) {
+            return false;
+        }
+
+        $meta = json_decode($meta_content, true);
+        if (!is_array($meta) || !isset($meta['created'], $meta['ttl'])) {
+            return false;
+        }
+
+        $age = time() - (int) $meta['created'];
+        return $age < (int) $meta['ttl'];
+    }
+
+    private function get_cache_ttl(): int
+    {
+        $settings = Settings::get();
+
+        // Determine content type and return appropriate TTL
+        if (is_front_page()) {
+            return (int) ($settings['cache_ttl_homepage'] ?? 3600);
+        }
+
+        if (is_singular('post')) {
+            return (int) ($settings['cache_ttl_posts'] ?? 7 * DAY_IN_SECONDS);
+        }
+
+        if (is_singular('page')) {
+            return (int) ($settings['cache_ttl_pages'] ?? 30 * DAY_IN_SECONDS);
+        }
+
+        // Default TTL for other content types
+        return (int) ($settings['cache_ttl'] ?? 7 * DAY_IN_SECONDS);
     }
 
     private function get_cache_path(): string
@@ -366,6 +424,16 @@ final class StaticCache
             return false;
         }
 
+        // Check URL exclusions
+        if ($this->is_excluded_url()) {
+            return false;
+        }
+
+        // Check cookie exclusions
+        if ($this->has_excluded_cookies()) {
+            return false;
+        }
+
         $settings = Settings::get();
         $mode = $settings['mode'] ?? 'disabled';
 
@@ -374,6 +442,44 @@ final class StaticCache
         }
 
         return true;
+    }
+
+    private function is_excluded_url(): bool
+    {
+        $settings = Settings::get();
+        $patterns = $settings['cache_exclude_urls'] ?? [];
+        
+        if (empty($patterns)) {
+            return false;
+        }
+
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        
+        foreach ($patterns as $pattern) {
+            if (fnmatch($pattern, $uri)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function has_excluded_cookies(): bool
+    {
+        $settings = Settings::get();
+        $cookies = $settings['cache_exclude_cookies'] ?? [];
+        
+        if (empty($cookies)) {
+            return false;
+        }
+
+        foreach ($cookies as $cookie_name) {
+            if (isset($_COOKIE[$cookie_name])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function is_warm_request(): bool

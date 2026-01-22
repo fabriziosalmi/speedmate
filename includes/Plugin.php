@@ -27,27 +27,16 @@ final class Plugin
 
     private function boot(): void
     {
-        $this->load_dependencies();
+        $this->load_autoloader();
         $this->register_hooks();
     }
 
-    private function load_dependencies(): void
+    private function load_autoloader(): void
     {
-        require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/Settings.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/Container.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/RateLimiter.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/Logger.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/CspNonce.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/Stats.php';
-        require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';
-        require_once SPEEDMATE_PATH . 'includes/Cache/StaticCache.php';
-        require_once SPEEDMATE_PATH . 'includes/Cache/TrafficWarmer.php';
-        require_once SPEEDMATE_PATH . 'includes/Media/MediaOptimizer.php';
-        require_once SPEEDMATE_PATH . 'includes/Perf/AutoLCP.php';
-        require_once SPEEDMATE_PATH . 'includes/Perf/BeastMode.php';
-        require_once SPEEDMATE_PATH . 'includes/Cache/DynamicFragments.php';
-        require_once SPEEDMATE_PATH . 'includes/Admin/Admin.php';
+        $autoload_path = SPEEDMATE_PATH . 'vendor/autoload.php';
+        if (file_exists($autoload_path)) {
+            require_once $autoload_path;
+        }
     }
 
     private function register_hooks(): void
@@ -56,15 +45,21 @@ final class Plugin
 
         if (is_admin()) {
             Admin::instance();
+            \SpeedMate\Admin\HealthWidget::instance();
+            \SpeedMate\Admin\ImportExport::instance();
         }
 
         StaticCache::instance();
         \SpeedMate\Cache\TrafficWarmer::instance();
         \SpeedMate\Media\MediaOptimizer::instance();
+        \SpeedMate\Media\WebPConverter::instance();
         \SpeedMate\Perf\AutoLCP::instance();
         \SpeedMate\Perf\BeastMode::instance();
+        \SpeedMate\Perf\CriticalCSS::instance();
+        \SpeedMate\Perf\PreloadHints::instance();
         \SpeedMate\Cache\DynamicFragments::instance();
         \SpeedMate\Utils\GarbageCollector::instance();
+        \SpeedMate\API\BatchEndpoints::instance();
     }
 
     public function register_settings(): void
@@ -77,6 +72,29 @@ final class Plugin
                 'beast_apply_all' => false,
                 'logging_enabled' => false,
                 'csp_nonce' => false,
+                'cache_ttl' => 7 * DAY_IN_SECONDS,
+                'cache_ttl_homepage' => 3600,
+                'cache_ttl_posts' => 7 * DAY_IN_SECONDS,
+                'cache_ttl_pages' => 30 * DAY_IN_SECONDS,
+                'cache_exclude_urls' => [
+                    '/checkout/',
+                    '/cart/',
+                    '/my-account/',
+                ],
+                'cache_exclude_cookies' => [
+                    'woocommerce_items_in_cart',
+                ],
+                'cache_exclude_query_params' => [
+                    'utm_*',
+                    'fb_*',
+                ],
+                'warmer_enabled' => true,
+                'warmer_frequency' => 'hourly',
+                'warmer_max_urls' => 20,
+                'warmer_concurrent' => 3,
+                'webp_enabled' => false,
+                'critical_css_enabled' => false,
+                'preload_hints_enabled' => true,
             ], '', false);
         }
 

@@ -42,8 +42,12 @@ final class TrafficWarmer
 
     public static function activate(): void
     {
-        if (!wp_next_scheduled(self::CRON_HOOK)) {
-            wp_schedule_event(time() + HOUR_IN_SECONDS, 'hourly', self::CRON_HOOK);
+        $settings = Settings::get();
+        $enabled = $settings['warmer_enabled'] ?? true;
+        $frequency = $settings['warmer_frequency'] ?? 'hourly';
+
+        if ($enabled && !wp_next_scheduled(self::CRON_HOOK)) {
+            wp_schedule_event(time() + HOUR_IN_SECONDS, $frequency, self::CRON_HOOK);
         }
     }
 
@@ -94,7 +98,10 @@ final class TrafficWarmer
         }
 
         arsort($hits);
-        $top = array_slice($hits, 0, 20, true);
+        
+        $settings = Settings::get();
+        $max_urls = (int) ($settings['warmer_max_urls'] ?? 20);
+        $top = array_slice($hits, 0, $max_urls, true);
 
         foreach ($top as $url => $count) {
             if (!is_string($url) || $url === '') {
