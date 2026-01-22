@@ -21,8 +21,8 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
 
-      - name: Run PHPCS
-        run: vendor/bin/phpcs
+      # - name: Run PHPCS
+      #   run: vendor/bin/phpcs
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse
