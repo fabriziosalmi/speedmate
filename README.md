@@ -1,8 +1,8 @@
 # SpeedMate
 
-A lightweight, zero-configuration WordPress performance plugin that delivers static HTML caching, media optimization, and advanced JavaScript deferral without complexity.
+WordPress performance plugin with static HTML caching, media optimization, and JavaScript deferral.
 
-## Core Features
+## Features
 
 ### Caching System
 - **Static HTML Generation**: Full-page cache with intelligent purge on content updates
@@ -17,13 +17,13 @@ A lightweight, zero-configuration WordPress performance plugin that delivers sta
 - **Safe Mode**: Production-ready optimizations including lazy-loading, automatic image dimensions, and GZIP compression
 - **Beast Mode**: Aggressive JavaScript delay strategy that defers execution until first user interaction (click, scroll, or keypress)
 
-### Automatic Optimizations
-- **Auto-LCP Detection**: Machine learning identifies your Largest Contentful Paint element and automatically injects preload hints
-- **Critical CSS**: Automatic stylesheet deferring with critical CSS extraction
-- **WebP Conversion**: Automatic WebP image generation with browser fallback support
-- **Preload Hints**: DNS prefetch, preconnect, and resource hints for faster loading
-- **WooCommerce Integration**: Cart, checkout, and account fragments remain dynamic while product pages are cached
-- **Self-Healing Cache**: Monitors plugin and theme updates, purging only affected cache entries
+### Optimizations
+- **LCP Detection**: Identifies Largest Contentful Paint elements and injects preload hints
+- **Critical CSS**: Stylesheet deferring with media print onload strategy
+- **WebP Conversion**: Image conversion on upload with browser fallback via picture tags
+- **Preload Hints**: DNS prefetch, preconnect, and resource prefetch
+- **WooCommerce Support**: Dynamic fragments for cart/checkout, cached product pages
+- **Selective Purging**: Cache invalidation on plugin/theme updates
 
 ### Management Tools
 - **WP-CLI Commands**: Full command-line interface (`flush`, `warm`, `stats`, `gc`, `info`)
@@ -56,19 +56,18 @@ Then activate via WordPress admin panel and select your performance mode.
 ## Configuration
 
 ### Performance Modes
-SpeedMate operates in two modes, selectable from the admin panel:
 
-**Safe Mode** (recommended for most sites):
+**Safe Mode**:
 - Static HTML caching
 - Image lazy-loading with dimension injection
 - GZIP compression
-- Auto-LCP preloading
+- LCP preloading
 
-**Beast Mode** (advanced performance):
+**Beast Mode**:
 - All Safe Mode features
-- JavaScript execution delay
+- JavaScript execution delay until user interaction
 - Configurable script whitelist/blacklist
-- Preview mode for admin-only testing before public deployment
+- Preview mode for testing
 
 ### Beast Mode Configuration
 The Beast Mode panel allows you to:
@@ -88,12 +87,11 @@ For user-specific or frequently-changing content within cached pages:
 Dynamic fragments are rendered on every request while the surrounding page remains cached.
 
 ### Security Hardening (Optional)
-Advanced security features available in settings:
+Advanced secuFeatures
 
-- **Structured JSON Logging**: Machine-readable logs for SIEM integration
-- **CSP Nonce Injection**: Automatic Content Security Policy nonces for inline scripts
-- **REST API Protection**: Rate limiting (default: 60 requests/minute) and idempotency keys for state-changing operations
-
+- **Structured JSON Logging**: Machine-readable logs
+- **CSP Nonce Injection**: Content Security Policy nonces for inline scripts
+- **REST API Rate Limiting**: 60 requests/minute default, idempotency keys for state change
 ## Cache Management
 
 ### Manual Cache Clearing
@@ -111,26 +109,21 @@ Cache is automatically invalidated when:
 
 ## Development Setup
 
-### Local Stack
-Start a full WordPress development environment with Docker:
+### Local Stac
+
+### Docker Stack
 ```bash
 ./scripts/stack-up.sh
 ```
-This provisions WordPress, MySQL, and phpMyAdmin accessible at `localhost:8000`.
-
-### Test Execution
+Starts WordPress, MySQL, and phpMyAdmin on
 Run the complete test suite:
 ```bash
-./scripts/run-tests.sh
-```
-This executes:
-- PHPUnit integration tests (WordPress test framework)
-- Playwright end-to-end browser tests
-
-Individual test suites:
+./scripting
 ```bash
-# PHPUnit only
-composer test
+./scripts/run-tests.sh  # PHPUnit + Playwright E2E
+```
+
+Individual
 
 # Playwright E2E only
 cd tests/e2e && npm test
@@ -144,46 +137,34 @@ composer phpcs      # PHP_CodeSniffer against WordPress standards
 composer phpstan    # Static analysis at level 8
 ```
 
-### Git Hooks
-Enable automatic testing before push:
 ```bash
-git config core.hooksPath .githooks
+composer phpcs      # WordPress coding standards
+composer phpstan    # Static analysis
 ```
-The pre-push hook runs PHPUnit and blocks the push if tests fail.
 
-## Architecture
-
-### File Structure
-- `/includes/class-speedmate-cache.php` - Core caching engine
-- `/includes/class-speedmate-optimizer.php` - Media and asset optimization
-- `/includes/class-speedmate-beast-mode.php` - JavaScript delay logic
+### Git Hooks
+```bash
+git config core.hooksPath .githooks  # Pre-push PHPUnit tests
+```ogic
 - `/includes/class-speedmate-lcp.php` - Auto-LCP detection and injection
 - `/admin/` - Settings UI and admin functionality
 
 ### Caching Strategy
 1. Request intercepted via `template_redirect` hook (priority 1)
-2. Cache key generated from URL, mobile detection, and logged-in status
+2. Implementation
+
+### Caching
+1. `template_redirect` hook intercepts requests (priority 1)
+2. Cache key: URL + mobile detection + login status
 3. Cached HTML served with `X-SpeedMate-Cache: HIT` header
-4. On cache miss, output buffering captures generated HTML
-5. HTML stored in `wp-content/cache/speedmate/` with 24-hour TTL
+4. Output buffering captures HTML on miss
+5. Files stored in `wp-content/cache/speedmate/` with configurable TTL
 
-### Beast Mode Implementation
-JavaScript delay uses Mutation Observer and event delegation:
-1. All `<script>` tags (except whitelisted) receive `type="speedmate/javascript"`
-2. User interaction (click/scroll/keypress) triggers execution queue
-3. Scripts execute in original DOM order to preserve dependencies
-4. Configurable delay threshold (default: 5 seconds as fallback)
-
-## Performance Metrics
-
-SpeedMate tracks and displays:
-- Total pages cached
-- Cache hit ratio (hits / total requests)
-- Cumulative time saved (avg load time reduction × visitor count)
-- Cache size and directory statistics
-- LCP improvements before/after optimization
-- Real-time admin bar performance indicators
-
+### JavaScript Delay (Beast Mode)
+1. Script tags receive `type="speedmate/javascript"` (except whitelist)
+2. User interaction (click/scroll/keypress) triggers execution
+3. Scripts execute in DOM order
+4. 5-second fallback timeout
 Access metrics in:
 - SpeedMate → Dashboard
 - WordPress Admin Bar (when logged in)
@@ -193,19 +174,18 @@ Access metrics in:
 ## Compatibility
 
 ### Known Compatible Plugins
-- WooCommerce (with dynamic fragment support)
-- Easy Digital Downloads
-- MemberPress
-- Contact Form 7
+- WMetrics
 
-### Known Incompatible Plugins
-- Other full-page caching plugins (WP Super Cache, W3 Total Cache)
-- Plugins that require real-time content on every request without fragment support
+Tracked data:
+- Pages cached
+- Hit ratio
+- Time saved estimate
+- Cache size
+- LCP statistics
 
-## Troubleshooting
-
-### Cache Not Generating
-1. Verify `.htaccess` is writable (Apache)
+Access via:
+- Dashboard widget
+- Admin barche)
 2. Check `wp-content/cache/speedmate/` directory exists and is writable
 3. Confirm no conflicting caching plugins are active
 4. Review PHP error logs for permission issues
@@ -237,3 +217,10 @@ MIT License. See [LICENSE](LICENSE) for full text.
 - Repository: https://github.com/fabriziosalmi/speedmate
 - Issues: https://github.com/fabriziosalmi/speedmate/issues
 - Releases: https://github.com/fabriziosalmi/speedmate/releases
+require:
+- PHPUnit tests passing
+- WordPress coding standards (`composer phpcs`)
+- PHPStan passing
+
+## Security
+Report vulnerabilities to fabrizio.salmi@gmail.com
