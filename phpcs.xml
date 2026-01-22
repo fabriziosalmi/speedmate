@@ -15,5 +15,8 @@
         <!-- PSR-12 style spacing -->
         <exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
         <exclude name="PEAR.Functions.FunctionCallSignature"/>
+        <!-- PSR-4 class filenames -->
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
     </rule>
 </ruleset>
