@@ -1,0 +1,251 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SpeedMate\Admin;
+
+use SpeedMate\Cache\StaticCache;
+
+final class Admin
+{
+    private static ?Admin $instance = null;
+
+    private function __construct()
+    {
+    }
+
+    public static function instance(): Admin
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+            self::$instance->register_hooks();
+        }
+
+        return self::$instance;
+    }
+
+    private function register_hooks(): void
+    {
+        add_action('admin_menu', [$this, 'register_menu']);
+        add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_bar_menu', [$this, 'register_admin_bar'], 100);
+        add_action('admin_post_speedmate_flush_cache', [$this, 'handle_flush_cache']);
+    }
+
+    public function register_menu(): void
+    {
+        add_menu_page(
+            __('SpeedMate', 'speedmate'),
+            __('SpeedMate', 'speedmate'),
+            'manage_options',
+            'speedmate',
+            [$this, 'render_page'],
+            'dashicons-dashboard',
+            58
+        );
+    }
+
+    public function register_settings(): void
+    {
+        register_setting('speedmate', SPEEDMATE_OPTION_KEY, [
+            'type' => 'array',
+            'sanitize_callback' => [$this, 'sanitize_settings'],
+            'default' => [
+                'mode' => 'disabled',
+                'beast_whitelist' => [],
+                'beast_blacklist' => [],
+            ],
+        ]);
+    }
+
+    public function sanitize_settings($input): array
+    {
+        $mode = 'disabled';
+        if (is_array($input) && isset($input['mode'])) {
+            $allowed = ['disabled', 'safe', 'beast'];
+            $candidate = sanitize_text_field((string) $input['mode']);
+            if (in_array($candidate, $allowed, true)) {
+                $mode = $candidate;
+            }
+        }
+
+        $whitelist = [];
+        $blacklist = [];
+
+        if (is_array($input)) {
+            if (isset($input['beast_whitelist'])) {
+                $whitelist = $this->sanitize_rules((string) $input['beast_whitelist']);
+            }
+            if (isset($input['beast_blacklist'])) {
+                $blacklist = $this->sanitize_rules((string) $input['beast_blacklist']);
+            }
+        }
+
+        return [
+            'mode' => $mode,
+            'beast_whitelist' => $whitelist,
+            'beast_blacklist' => $blacklist,
+        ];
+    }
+
+    public function render_page(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
+        $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
+        $whitelist = is_array($settings) ? ($settings['beast_whitelist'] ?? []) : [];
+        $blacklist = is_array($settings) ? ($settings['beast_blacklist'] ?? []) : [];
+        $whitelist_text = is_array($whitelist) ? implode("\n", $whitelist) : '';
+        $blacklist_text = is_array($blacklist) ? implode("\n", $blacklist) : '';
+        $stats = get_option(SPEEDMATE_STATS_KEY, []);
+        $warmed = is_array($stats) ? (int) ($stats['warmed_pages'] ?? 0) : 0;
+        $lcp = is_array($stats) ? (int) ($stats['lcp_preloads'] ?? 0) : 0;
+        $cache_size = StaticCache::instance()->get_cache_size_bytes();
+        $cached_pages = StaticCache::instance()->get_cached_pages_count();
+        ?>
+        <div class="wrap">
+            <h1><?php echo esc_html__('SpeedMate', 'speedmate'); ?></h1>
+            <p>
+                <a class="button button-secondary" href="<?php echo esc_url($this->get_flush_url()); ?>">
+                    <?php echo esc_html__('Flush Cache', 'speedmate'); ?>
+                </a>
+            </p>
+            <h2><?php echo esc_html__('Vital Signs', 'speedmate'); ?></h2>
+            <table class="widefat striped" style="max-width: 560px;">
+                <tbody>
+                    <tr>
+                        <th><?php echo esc_html__('Cache size', 'speedmate'); ?></th>
+                        <td><?php echo esc_html($this->format_bytes($cache_size)); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html__('Cached pages', 'speedmate'); ?></th>
+                        <td><?php echo esc_html((string) $cached_pages); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html__('Pages warmed', 'speedmate'); ?></th>
+                        <td><?php echo esc_html((string) $warmed); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html__('LCP preloads', 'speedmate'); ?></th>
+                        <td><?php echo esc_html((string) $lcp); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+            <h2><?php echo esc_html__('Nginx Rules (copy/paste)', 'speedmate'); ?></h2>
+            <textarea class="large-text code" rows="8" readonly><?php echo esc_textarea(StaticCache::instance()->get_nginx_rules()); ?></textarea>
+            <form method="post" action="options.php">
+                <?php settings_fields('speedmate'); ?>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Mode', 'speedmate'); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="radio" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[mode]" value="disabled" <?php checked($mode, 'disabled'); ?> />
+                                    <?php echo esc_html__('Disabled', 'speedmate'); ?>
+                                </label><br />
+                                <label>
+                                    <input type="radio" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[mode]" value="safe" <?php checked($mode, 'safe'); ?> />
+                                    <?php echo esc_html__('Safe Mode', 'speedmate'); ?>
+                                </label><br />
+                                <label>
+                                    <input type="radio" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[mode]" value="beast" <?php checked($mode, 'beast'); ?> />
+                                    <?php echo esc_html__('Beast Mode', 'speedmate'); ?>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Beast Mode - Whitelist', 'speedmate'); ?></th>
+                        <td>
+                            <textarea class="large-text code" rows="6" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[beast_whitelist]" placeholder="cdn.example.com/script.js"><?php echo esc_textarea($whitelist_text); ?></textarea>
+                            <p class="description">
+                                <?php echo esc_html__('One rule per line. Matching scripts will never be delayed.', 'speedmate'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Beast Mode - Blacklist', 'speedmate'); ?></th>
+                        <td>
+                            <textarea class="large-text code" rows="6" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[beast_blacklist]" placeholder="checkout.js"><?php echo esc_textarea($blacklist_text); ?></textarea>
+                            <p class="description">
+                                <?php echo esc_html__('One rule per line. Matching scripts are always delayed.', 'speedmate'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <?php submit_button(); ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    public function register_admin_bar($wp_admin_bar): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        $wp_admin_bar->add_node([
+            'id' => 'speedmate-flush-cache',
+            'title' => __('Flush Cache', 'speedmate'),
+            'href' => $this->get_flush_url(),
+        ]);
+    }
+
+    public function handle_flush_cache(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized.', 'speedmate'));
+        }
+
+        check_admin_referer('speedmate_flush_cache');
+
+        StaticCache::instance()->flush_all();
+
+        wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=speedmate'));
+        exit;
+    }
+
+    private function get_flush_url(): string
+    {
+        $url = admin_url('admin-post.php?action=speedmate_flush_cache');
+
+        return wp_nonce_url($url, 'speedmate_flush_cache');
+    }
+
+    private function format_bytes(int $bytes): string
+    {
+        if ($bytes <= 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $power = (int) floor(log($bytes, 1024));
+        $power = min($power, count($units) - 1);
+        $value = $bytes / (1024 ** $power);
+
+        return number_format_i18n($value, $power === 0 ? 0 : 2) . ' ' . $units[$power];
+    }
+
+    private function sanitize_rules(string $input): array
+    {
+        $lines = preg_split('/\r\n|\r|\n/', $input);
+        if (!is_array($lines)) {
+            return [];
+        }
+
+        $rules = [];
+        foreach ($lines as $line) {
+            $line = trim(sanitize_text_field($line));
+            if ($line !== '') {
+                $rules[] = $line;
+            }
+        }
+
+        return array_values(array_unique($rules));
+    }
+}

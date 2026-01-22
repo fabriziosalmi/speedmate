@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<phpunit
+    bootstrap="bootstrap.php"
+    colors="true"
+    backupGlobals="false"
+    verbose="true"
+>
+    <testsuites>
+        <testsuite name="SpeedMate">
+            <directory suffix="Test.php">Integration</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
