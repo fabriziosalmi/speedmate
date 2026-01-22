@@ -27,6 +27,7 @@ define('SPEEDMATE_MIN_PHP', '7.4');
 
 require_once SPEEDMATE_PATH . 'includes/Plugin.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
+require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';
 require_once SPEEDMATE_PATH . 'includes/Cache/StaticCache.php';
 require_once SPEEDMATE_PATH . 'includes/Cache/TrafficWarmer.php';
 
@@ -41,3 +42,5 @@ register_activation_hook(__FILE__, ['SpeedMate\\Cache\\StaticCache', 'activate']
 register_deactivation_hook(__FILE__, ['SpeedMate\\Cache\\StaticCache', 'deactivate']);
 register_activation_hook(__FILE__, ['SpeedMate\\Cache\\TrafficWarmer', 'activate']);
 register_deactivation_hook(__FILE__, ['SpeedMate\\Cache\\TrafficWarmer', 'deactivate']);
+register_activation_hook(__FILE__, ['SpeedMate\\Utils\\GarbageCollector', 'activate']);
+register_deactivation_hook(__FILE__, ['SpeedMate\\Utils\\GarbageCollector', 'deactivate']);

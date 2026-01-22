@@ -42,7 +42,7 @@ define('DB_HOST', '${DB_HOST}');
 define('DB_CHARSET', 'utf8');
 define('DB_COLLATE', '');
 
-$table_prefix = 'wptests_';
+\$table_prefix = 'wptests_';
 
 define('WP_TESTS_DOMAIN', 'localhost');
 define('WP_TESTS_EMAIL', 'admin@example.com');

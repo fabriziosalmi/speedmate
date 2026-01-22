@@ -35,6 +35,7 @@ final class Plugin
     {
         require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
         require_once SPEEDMATE_PATH . 'includes/Utils/Stats.php';
+        require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';
         require_once SPEEDMATE_PATH . 'includes/Cache/StaticCache.php';
         require_once SPEEDMATE_PATH . 'includes/Cache/TrafficWarmer.php';
         require_once SPEEDMATE_PATH . 'includes/Media/MediaOptimizer.php';
@@ -58,6 +59,7 @@ final class Plugin
         \SpeedMate\Perf\AutoLCP::instance();
         \SpeedMate\Perf\BeastMode::instance();
         \SpeedMate\Cache\DynamicFragments::instance();
+        \SpeedMate\Utils\GarbageCollector::instance();
     }
 
     public function register_settings(): void
@@ -67,6 +69,7 @@ final class Plugin
                 'mode' => 'disabled',
                 'beast_whitelist' => [],
                 'beast_blacklist' => [],
+                'beast_apply_all' => false,
             ], '', false);
         }
 
@@ -74,6 +77,10 @@ final class Plugin
             add_option(SPEEDMATE_STATS_KEY, [
                 'warmed_pages' => 0,
                 'lcp_preloads' => 0,
+                'time_saved_ms' => 0,
+                'avg_uncached_ms' => 0,
+                'avg_cached_ms' => 50,
+                'week_key' => '',
             ], '', false);
         }
     }

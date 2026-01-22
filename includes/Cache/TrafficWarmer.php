@@ -65,6 +65,8 @@ final class TrafficWarmer
         $hits[$url] = isset($hits[$url]) ? ((int) $hits[$url] + 1) : 1;
 
         set_transient(self::TRANSIENT_KEY, $hits, HOUR_IN_SECONDS * 2);
+
+        \SpeedMate\Utils\Stats::add_time_saved_from_hit();
     }
 
     public function run(): void

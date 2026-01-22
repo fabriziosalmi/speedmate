@@ -20,6 +20,11 @@ SpeedMate is a 100% free, open‑source WordPress performance plugin focused on 
 2. Activate in WordPress admin
 3. Open SpeedMate → choose Safe or Beast Mode
 
+## Install (release ZIP)
+1. Download the latest ZIP from https://github.com/fabriziosalmi/speedmate/releases
+2. Upload in WordPress → Plugins → Add New → Upload Plugin
+3. Activate and select Safe/Beast Mode
+
 ## Quickstart (local)
 Start the local WordPress stack:
 - `./scripts/stack-up.sh`
@@ -38,6 +43,14 @@ Run the full test suite (PHPUnit + E2E):
 ## Configuration
 SpeedMate is designed to work out of the box. Advanced users can optionally edit the Beast Mode whitelist/blacklist in the admin screen.
 
+## 🌟 Why SpeedMate is Different (The "Zero Anxiety" Promise)
+Unlike other plugins that require a PhD to configure or can break your site unexpectedly, SpeedMate is built on **trust mechanics**:
+
+1. **Safety First (Preview Mode):** Test Beast Mode safely as an admin before enabling it for visitors. Zero downtime risk.
+2. **Self‑Healing Cache:** Automatically detects plugin updates or theme changes and flushes only the necessary cache fragments. No more broken CSS after updates.
+3. **The "Time Machine" Dashboard:** We don’t just show milliseconds. SpeedMate calculates the cumulative **human time saved** for your visitors.
+4. **Database Self‑Cleaning:** A silent weekly housekeeper that removes expired transients and safe bloat, keeping your site fast long‑term.
+
 ## Testing
 - Docker WordPress stack: see [tests/README.md](tests/README.md)
 - PHPUnit integration tests: [tests/phpunit.xml](tests/phpunit.xml)
@@ -49,6 +62,9 @@ Enable the hook to run tests before every push:
 
 ## Status
 Active development. PRs and issues welcome.
+
+## Repository
+https://github.com/fabriziosalmi/speedmate
 
 ## Security
 Report vulnerabilities via private disclosure (email to be added).

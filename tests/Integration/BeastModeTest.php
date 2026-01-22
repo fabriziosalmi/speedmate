@@ -12,6 +12,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'mode' => 'beast',
             'beast_whitelist' => [],
             'beast_blacklist' => [],
+            'beast_apply_all' => true,
         ]);
 
         $html = '<script src="https://example.com/app.js"></script>';
@@ -27,6 +28,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'mode' => 'beast',
             'beast_whitelist' => ['example.com/app.js'],
             'beast_blacklist' => [],
+            'beast_apply_all' => true,
         ]);
 
         $html = '<script src="https://example.com/app.js"></script>';
@@ -41,6 +43,7 @@ final class BeastModeTest extends WP_UnitTestCase
             'mode' => 'beast',
             'beast_whitelist' => [],
             'beast_blacklist' => ['example.com/app.js'],
+            'beast_apply_all' => true,
         ]);
 
         $html = '<script src="https://example.com/app.js"></script>';

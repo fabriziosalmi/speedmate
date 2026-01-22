@@ -30,6 +30,7 @@ final class Admin
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_bar_menu', [$this, 'register_admin_bar'], 100);
         add_action('admin_post_speedmate_flush_cache', [$this, 'handle_flush_cache']);
+        add_action('admin_post_speedmate_apply_beast_all', [$this, 'handle_apply_beast_all']);
     }
 
     public function register_menu(): void
@@ -54,6 +55,7 @@ final class Admin
                 'mode' => 'disabled',
                 'beast_whitelist' => [],
                 'beast_blacklist' => [],
+                'beast_apply_all' => false,
             ],
         ]);
     }
@@ -71,6 +73,7 @@ final class Admin
 
         $whitelist = [];
         $blacklist = [];
+        $apply_all = false;
 
         if (is_array($input)) {
             if (isset($input['beast_whitelist'])) {
@@ -79,12 +82,16 @@ final class Admin
             if (isset($input['beast_blacklist'])) {
                 $blacklist = $this->sanitize_rules((string) $input['beast_blacklist']);
             }
+            if (isset($input['beast_apply_all'])) {
+                $apply_all = (bool) $input['beast_apply_all'];
+            }
         }
 
         return [
             'mode' => $mode,
             'beast_whitelist' => $whitelist,
             'beast_blacklist' => $blacklist,
+            'beast_apply_all' => $apply_all,
         ];
     }
 
@@ -98,11 +105,13 @@ final class Admin
         $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
         $whitelist = is_array($settings) ? ($settings['beast_whitelist'] ?? []) : [];
         $blacklist = is_array($settings) ? ($settings['beast_blacklist'] ?? []) : [];
+        $apply_all = is_array($settings) ? (bool) ($settings['beast_apply_all'] ?? false) : false;
         $whitelist_text = is_array($whitelist) ? implode("\n", $whitelist) : '';
         $blacklist_text = is_array($blacklist) ? implode("\n", $blacklist) : '';
         $stats = get_option(SPEEDMATE_STATS_KEY, []);
         $warmed = is_array($stats) ? (int) ($stats['warmed_pages'] ?? 0) : 0;
         $lcp = is_array($stats) ? (int) ($stats['lcp_preloads'] ?? 0) : 0;
+        $time_saved_ms = is_array($stats) ? (int) ($stats['time_saved_ms'] ?? 0) : 0;
         $cache_size = StaticCache::instance()->get_cache_size_bytes();
         $cached_pages = StaticCache::instance()->get_cached_pages_count();
         ?>
@@ -131,6 +140,10 @@ final class Admin
                     <tr>
                         <th><?php echo esc_html__('LCP preloads', 'speedmate'); ?></th>
                         <td><?php echo esc_html((string) $lcp); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html__('Time saved (week)', 'speedmate'); ?></th>
+                        <td><?php echo esc_html($this->format_duration($time_saved_ms)); ?></td>
                     </tr>
                 </tbody>
             </table>
@@ -176,6 +189,25 @@ final class Admin
                             </p>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Beast Mode - Apply to all visitors', 'speedmate'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(SPEEDMATE_OPTION_KEY); ?>[beast_apply_all]" value="1" <?php checked($apply_all, true); ?> />
+                                <?php echo esc_html__('Enable Beast Mode for everyone (disable preview).', 'speedmate'); ?>
+                            </label>
+                            <p class="description">
+                                <?php echo esc_html__('Default is Preview Mode: only admins or ?speedmate_test=1 see the effect.', 'speedmate'); ?>
+                            </p>
+                            <?php if (!$apply_all) : ?>
+                                <p>
+                                    <a class="button button-primary" href="<?php echo esc_url($this->get_apply_beast_all_url()); ?>">
+                                        <?php echo esc_html__('Apply to all now', 'speedmate'); ?>
+                                    </a>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
@@ -210,11 +242,38 @@ final class Admin
         exit;
     }
 
+    public function handle_apply_beast_all(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized.', 'speedmate'));
+        }
+
+        check_admin_referer('speedmate_apply_beast_all');
+
+        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
+        if (!is_array($settings)) {
+            $settings = [];
+        }
+
+        $settings['beast_apply_all'] = true;
+        update_option(SPEEDMATE_OPTION_KEY, $settings, false);
+
+        wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=speedmate'));
+        exit;
+    }
+
     private function get_flush_url(): string
     {
         $url = admin_url('admin-post.php?action=speedmate_flush_cache');
 
         return wp_nonce_url($url, 'speedmate_flush_cache');
+    }
+
+    private function get_apply_beast_all_url(): string
+    {
+        $url = admin_url('admin-post.php?action=speedmate_apply_beast_all');
+
+        return wp_nonce_url($url, 'speedmate_apply_beast_all');
     }
 
     private function format_bytes(int $bytes): string
@@ -229,6 +288,24 @@ final class Admin
         $value = $bytes / (1024 ** $power);
 
         return number_format_i18n($value, $power === 0 ? 0 : 2) . ' ' . $units[$power];
+    }
+
+    private function format_duration(int $ms): string
+    {
+        if ($ms <= 0) {
+            return '0 min';
+        }
+
+        $seconds = (int) floor($ms / 1000);
+        $minutes = (int) floor($seconds / 60);
+        $hours = (int) floor($minutes / 60);
+        $minutes = $minutes % 60;
+
+        if ($hours > 0) {
+            return sprintf('%d h %d min', $hours, $minutes);
+        }
+
+        return sprintf('%d min', $minutes);
     }
 
     private function sanitize_rules(string $input): array

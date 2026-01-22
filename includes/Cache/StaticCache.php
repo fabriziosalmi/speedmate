@@ -10,6 +10,7 @@ use SpeedMate\Utils\Stats;
 final class StaticCache
 {
     private static ?StaticCache $instance = null;
+    private float $request_start = 0.0;
 
     private function __construct()
     {
@@ -27,8 +28,10 @@ final class StaticCache
 
     private function register_hooks(): void
     {
+        add_action('template_redirect', [$this, 'mark_request_start'], -1);
         add_action('template_redirect', [$this, 'start_buffer'], 0);
         add_action('shutdown', [$this, 'write_cache'], 0);
+        add_action('shutdown', [$this, 'record_timing'], 1);
         add_action('save_post', [$this, 'purge_post_cache'], 10, 2);
         add_action('delete_post', [$this, 'purge_post_cache'], 10, 2);
     }
@@ -81,6 +84,31 @@ final class StaticCache
         if ($this->is_warm_request()) {
             Stats::increment('warmed_pages');
         }
+    }
+
+    public function mark_request_start(): void
+    {
+        if ($this->request_start === 0.0) {
+            $this->request_start = microtime(true);
+        }
+    }
+
+    public function record_timing(): void
+    {
+        if ($this->request_start <= 0) {
+            return;
+        }
+
+        if (!$this->is_cacheable_request()) {
+            return;
+        }
+
+        $elapsed_ms = (int) round((microtime(true) - $this->request_start) * 1000);
+        if ($elapsed_ms <= 0) {
+            return;
+        }
+
+        Stats::record_uncached_time($elapsed_ms);
     }
 
     public function purge_post_cache(int $post_id, $post = null): void

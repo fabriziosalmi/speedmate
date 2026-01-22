@@ -208,6 +208,26 @@ final class BeastMode
         $settings = get_option(SPEEDMATE_OPTION_KEY, []);
         $mode = is_array($settings) ? ($settings['mode'] ?? 'disabled') : 'disabled';
 
-        return $mode === 'beast';
+        if ($mode !== 'beast') {
+            return false;
+        }
+
+        return $this->is_preview_allowed();
+    }
+
+    private function is_preview_allowed(): bool
+    {
+        $settings = get_option(SPEEDMATE_OPTION_KEY, []);
+        $apply_all = is_array($settings) ? (bool) ($settings['beast_apply_all'] ?? false) : false;
+
+        if ($apply_all) {
+            return true;
+        }
+
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+
+        return isset($_GET['speedmate_test']) && $_GET['speedmate_test'] === '1';
     }
 }
