@@ -8,6 +8,12 @@
     <arg name="extensions" value="php"/>
     <arg name="colors"/>
 
-    <rule ref="WordPress"/>
-    <rule ref="PSR12"/>
+    <rule ref="WordPress">
+        <!-- Allow short array syntax -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        <!-- PSR-12 style spacing -->
+        <exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
+        <exclude name="PEAR.Functions.FunctionCallSignature"/>
+    </rule>
 </ruleset>
