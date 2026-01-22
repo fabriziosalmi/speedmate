@@ -18,5 +18,10 @@
     "psr-4": {
       "SpeedMate\\": "includes/"
     }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
   }
 }
