@@ -1,0 +1,17 @@
+refactor: split StaticCache into 5 specialized classes
+
+StaticCache.php reduced from 598 lines to 213 lines (-64%)
+
+Created 5 new classes with single responsibilities:
+- CacheStorage: file operations, size/count, flush
+- CacheRules: Apache/Nginx config generation
+- CacheTTLManager: TTL calculation by content type
+- CacheMetadata: path generation and security validation
+- CachePolicy: cacheable determination, exclusions
+
+StaticCache now orchestrator delegating to specialized classes.
+All public API maintained for backward compatibility.
+Security validations preserved in CacheMetadata.
+
+Issue: #16
+Milestone: v0.4.0 Week 1

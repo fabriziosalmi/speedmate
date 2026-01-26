@@ -4,20 +4,35 @@ declare(strict_types=1);
 
 namespace SpeedMate\Cache;
 
-use SpeedMate\Utils\Filesystem;
 use SpeedMate\Utils\Stats;
-use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * Main static cache orchestrator.
+ * Delegates to specialized classes for different responsibilities.
+ *
+ * @package SpeedMate\Cache
+ * @since 0.4.0
+ */
 final class StaticCache
 {
     use Singleton;
 
     private float $request_start = 0.0;
+    private CacheStorage $storage;
+    private CacheRules $rules;
+    private CacheTTLManager $ttl;
+    private CacheMetadata $metadata;
+    private CachePolicy $policy;
 
     private function __construct()
     {
+        $this->storage = new CacheStorage();
+        $this->rules = new CacheRules();
+        $this->ttl = new CacheTTLManager();
+        $this->metadata = new CacheMetadata();
+        $this->policy = new CachePolicy();
     }
 
     private function register_hooks(): void
@@ -32,20 +47,21 @@ final class StaticCache
 
     public static function activate(): void
     {
-        self::instance()->ensure_cache_dir();
-        self::instance()->write_htaccess_rules();
+        $instance = self::instance();
+        $instance->storage->ensure_cache_dir();
+        $instance->rules->write_htaccess();
         Stats::create_table();
         \SpeedMate\Utils\Migration::migrate_stats_to_table();
     }
 
     public static function deactivate(): void
     {
-        self::instance()->remove_htaccess_rules();
+        self::instance()->rules->remove_htaccess();
     }
 
     public function start_buffer(): void
     {
-        if (!$this->is_cacheable_request()) {
+        if (!$this->policy->is_cacheable()) {
             return;
         }
 
@@ -56,7 +72,7 @@ final class StaticCache
 
     public function write_cache(): void
     {
-        if (!$this->is_cacheable_request()) {
+        if (!$this->policy->is_cacheable()) {
             return;
         }
 
@@ -69,27 +85,20 @@ final class StaticCache
             return;
         }
 
-        $path = $this->get_cache_path();
+        $path = $this->metadata->get_cache_path();
         if ($path === '') {
             Logger::log('warning', 'cache_path_empty');
             return;
         }
 
         $contents = apply_filters('speedmate_cache_contents', $contents);
-        if (!Filesystem::put_contents($path, $contents)) {
-            Logger::log('warning', 'cache_write_failed', ['path' => $path]);
+        $ttl = $this->ttl->get_ttl();
+
+        if (!$this->storage->write($path, $contents, $ttl)) {
             return;
         }
 
-        // Write metadata file with TTL
-        $meta = [
-            'created' => time(),
-            'ttl' => $this->get_cache_ttl(),
-        ];
-        $meta_path = $path . '.meta';
-        Filesystem::put_contents($meta_path, wp_json_encode($meta));
-
-        if ($this->is_warm_request()) {
+        if ($this->policy->is_warm_request()) {
             Stats::increment('warmed_pages');
         }
     }
@@ -107,7 +116,7 @@ final class StaticCache
             return;
         }
 
-        if (!$this->is_cacheable_request()) {
+        if (!$this->policy->is_cacheable()) {
             return;
         }
 
@@ -156,364 +165,49 @@ final class StaticCache
 
     public function flush_all(): void
     {
-        if (!Filesystem::exists(SPEEDMATE_CACHE_DIR)) {
-            return;
-        }
-
-        Filesystem::delete(SPEEDMATE_CACHE_DIR, true);
+        $this->storage->flush_all();
     }
 
     public function get_nginx_rules(): string
     {
-        $host = wp_parse_url(home_url(), PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            $host = '$host';
-        }
-
-        return "# SpeedMate static cache\n" .
-            "location / {\n" .
-            "    if (\$request_method = GET) {\n" .
-            "        if (\$query_string = \"\") {\n" .
-            "            set \$cache_file /wp-content/cache/speedmate/{$host}\$uri/index.html;\n" .
-            "            if (-f \$document_root\$cache_file) {\n" .
-            "                rewrite ^ \$cache_file break;\n" .
-            "            }\n" .
-            "        }\n" .
-            "    }\n" .
-            "    try_files \$uri \$uri/ /index.php?\$args;\n" .
-            "}\n";
+        return $this->rules->get_nginx_rules();
     }
 
     public function get_cache_size_bytes(): int
     {
-        if (!is_dir(SPEEDMATE_CACHE_DIR)) {
-            return 0;
-        }
-
-        $size = 0;
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator(SPEEDMATE_CACHE_DIR, \FilesystemIterator::SKIP_DOTS)
-        );
-
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $size += $file->getSize();
-            }
-        }
-
-        return $size;
+        return $this->storage->get_size();
     }
 
     public function get_cached_pages_count(): int
     {
-        if (!is_dir(SPEEDMATE_CACHE_DIR)) {
-            return 0;
-        }
-
-        $count = 0;
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator(SPEEDMATE_CACHE_DIR, \FilesystemIterator::SKIP_DOTS)
-        );
-
-        foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getFilename() === 'index.html') {
-                $count++;
-            }
-        }
-
-        return $count;
+        return $this->storage->count_pages();
     }
 
     public function has_cache_for_url(string $url): bool
     {
-        $path = $this->get_cache_path_for_url($url);
+        $path = $this->metadata->get_cache_path_for_url($url);
         if ($path === '') {
             return false;
         }
 
-        if (!Filesystem::exists($path)) {
+        if (!$this->storage->exists($path)) {
             return false;
         }
 
-        return $this->is_cache_valid($path);
-    }
-
-    private function is_cache_valid(string $path): bool
-    {
-        $meta_path = $path . '.meta';
-        if (!Filesystem::exists($meta_path)) {
-            // No metadata means old cache file, consider invalid
-            return false;
-        }
-
-        $meta_content = Filesystem::get_contents($meta_path);
-        if ($meta_content === '') {
-            return false;
-        }
-
-        $meta = json_decode($meta_content, true);
-        if (!is_array($meta) || !isset($meta['created'], $meta['ttl'])) {
-            return false;
-        }
-
-        $age = time() - (int) $meta['created'];
-        return $age < (int) $meta['ttl'];
-    }
-
-    private function get_cache_ttl(): int
-    {
-        $settings = Settings::get();
-
-        // Determine content type and return appropriate TTL
-        if (is_front_page()) {
-            return (int) ($settings['cache_ttl_homepage'] ?? 3600);
-        }
-
-        if (is_singular('post')) {
-            return (int) ($settings['cache_ttl_posts'] ?? 7 * DAY_IN_SECONDS);
-        }
-
-        if (is_singular('page')) {
-            return (int) ($settings['cache_ttl_pages'] ?? 30 * DAY_IN_SECONDS);
-        }
-
-        // Default TTL for other content types
-        return (int) ($settings['cache_ttl'] ?? 7 * DAY_IN_SECONDS);
-    }
-
-    private function get_cache_path(): string
-    {
-        $host = wp_parse_url(home_url(), PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            return '';
-        }
-
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        // Security: Remove query string and sanitize path
-        $uri = strtok($uri, '?') ?: '/';
-        // Remove any potential directory traversal attempts
-        $uri = str_replace(['../', '..\\'], '', $uri);
-        // Sanitize and normalize the path
-        $uri = trim($uri, '/');
-
-        // Additional security: ensure no absolute paths or null bytes
-        if (strpos($uri, chr(0)) !== false || strpos($uri, DIRECTORY_SEPARATOR) === 0) {
-            Logger::log('warning', 'invalid_cache_path_attempt', ['uri' => $uri]);
-            return '';
-        }
-
-        // Security: Reject paths starting with dot (hidden files/directories)
-        if (strpos($uri, '.') === 0) {
-            Logger::log('warning', 'dotfile_cache_path_attempt', ['uri' => $uri]);
-            return '';
-        }
-
-        // Security: Validate path contains only safe characters
-        if (preg_match('/[^a-zA-Z0-9\/\-_]/', $uri) && $uri !== '') {
-            Logger::log('warning', 'invalid_characters_in_path', ['uri' => $uri]);
-            return '';
-        }
-
-        $path = trailingslashit(SPEEDMATE_CACHE_DIR . '/' . $host . '/' . $uri);
-
-        return $path . 'index.html';
-    }
-
-    private function get_cache_path_for_url(string $url): string
-    {
-        $host = wp_parse_url(home_url(), PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            return '';
-        }
-
-        $path = wp_parse_url($url, PHP_URL_PATH);
-        if (!is_string($path)) {
-            return '';
-        }
-
-        // Security: Remove directory traversal attempts
-        $path = str_replace(['../', '..\\'], '', $path);
-        $path = trim($path, '/');
-
-        // Additional security: ensure no null bytes
-        if (strpos($path, chr(0)) !== false) {
-            Logger::log('warning', 'invalid_cache_path_for_url', ['url' => $url]);
-            return '';
-        }
-
-        // Security: Reject paths starting with dot
-        if (strpos($path, '.') === 0) {
-            Logger::log('warning', 'dotfile_cache_path_for_url', ['url' => $url]);
-            return '';
-        }
-
-        // Security: Validate path contains only safe characters
-        if (preg_match('/[^a-zA-Z0-9\/\-_]/', $path) && $path !== '') {
-            Logger::log('warning', 'invalid_characters_in_url_path', ['url' => $url]);
-            return '';
-        }
-
-        $cache_path = trailingslashit(SPEEDMATE_CACHE_DIR . '/' . $host . '/' . $path);
-
-        return $cache_path . 'index.html';
+        return $this->storage->is_valid($path);
     }
 
     private function purge_url(string $url): void
     {
-        $path = $this->get_cache_path_for_url($url);
-        if ($path === '') {
+        $dir = $this->metadata->get_cache_dir_for_url($url);
+        if ($dir === '') {
             return;
         }
 
-        if (strpos($path, SPEEDMATE_CACHE_DIR) !== 0) {
+        if (strpos($dir, SPEEDMATE_CACHE_DIR) !== 0) {
             return;
         }
 
-        $dir = dirname($path);
-        if (Filesystem::exists($dir)) {
-            Filesystem::delete($dir, true);
-        }
-    }
-
-    private function ensure_cache_dir(): void
-    {
-        if (!Filesystem::exists(SPEEDMATE_CACHE_DIR)) {
-            Filesystem::put_contents(trailingslashit(SPEEDMATE_CACHE_DIR) . 'index.html', "");
-            Filesystem::delete(trailingslashit(SPEEDMATE_CACHE_DIR) . 'index.html');
-        }
-    }
-
-    private function write_htaccess_rules(): void
-    {
-        if (!function_exists('insert_with_markers')) {
-            require_once ABSPATH . 'wp-admin/includes/misc.php';
-        }
-        if (!function_exists('get_home_path')) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-        }
-
-        $rules = $this->get_htaccess_rules();
-        $htaccess = trailingslashit(get_home_path()) . '.htaccess';
-        insert_with_markers($htaccess, 'SpeedMate', $rules);
-    }
-
-    private function remove_htaccess_rules(): void
-    {
-        if (!function_exists('insert_with_markers')) {
-            require_once ABSPATH . 'wp-admin/includes/misc.php';
-        }
-        if (!function_exists('get_home_path')) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-        }
-
-        $htaccess = trailingslashit(get_home_path()) . '.htaccess';
-        insert_with_markers($htaccess, 'SpeedMate', []);
-    }
-
-    private function get_htaccess_rules(): array
-    {
-        $host = wp_parse_url(home_url(), PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            $host = '%{HTTP_HOST}';
-        }
-
-        return [
-            '<IfModule mod_rewrite.c>',
-            'RewriteEngine On',
-            'RewriteCond %{REQUEST_METHOD} =GET',
-            'RewriteCond %{QUERY_STRING} ^$',
-            'RewriteCond %{REQUEST_URI} !^/wp-admin',
-            'RewriteCond %{REQUEST_URI} !^/wp-json',
-            'RewriteCond %{HTTP_COOKIE} !wordpress_logged_in',
-            'RewriteCond %{DOCUMENT_ROOT}/wp-content/cache/speedmate/' . $host . '%{REQUEST_URI}/index.html -f',
-            'RewriteRule ^(.*)$ /wp-content/cache/speedmate/' . $host . '%{REQUEST_URI}/index.html [L]',
-            '</IfModule>',
-            '<IfModule mod_deflate.c>',
-            'AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json image/svg+xml',
-            '</IfModule>',
-        ];
-    }
-
-    private function is_cacheable_request(): bool
-    {
-        if (is_admin() || is_user_logged_in()) {
-            return false;
-        }
-
-        $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-        if ($method !== 'GET') {
-            return false;
-        }
-
-        if (!empty($_SERVER['QUERY_STRING']) && !$this->is_warm_request()) {
-            return false;
-        }
-
-        if (is_feed() || is_trackback() || is_preview() || is_search()) {
-            return false;
-        }
-
-        // Check URL exclusions
-        if ($this->is_excluded_url()) {
-            return false;
-        }
-
-        // Check cookie exclusions
-        if ($this->has_excluded_cookies()) {
-            return false;
-        }
-
-        $settings = Settings::get();
-        $mode = $settings['mode'] ?? 'disabled';
-
-        if ($mode === 'disabled') {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function is_excluded_url(): bool
-    {
-        $settings = Settings::get();
-        $patterns = $settings['cache_exclude_urls'] ?? [];
-        
-        if (empty($patterns)) {
-            return false;
-        }
-
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        
-        foreach ($patterns as $pattern) {
-            if (fnmatch($pattern, $uri)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function has_excluded_cookies(): bool
-    {
-        $settings = Settings::get();
-        $cookies = $settings['cache_exclude_cookies'] ?? [];
-        
-        if (empty($cookies)) {
-            return false;
-        }
-
-        foreach ($cookies as $cookie_name) {
-            if (isset($_COOKIE[$cookie_name])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function is_warm_request(): bool
-    {
-        $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
-        return $query === 'speedmate_warm=1';
+        $this->storage->delete($dir);
     }
 }
