@@ -118,8 +118,6 @@ Cache is automatically invalidated when:
 Starts WordPress, MySQL, and phpMyAdmin on
 Run the complete test suite:
 ```bash
-./scripting
-```bash
 ./scripts/run-tests.sh  # PHPUnit + Playwright E2E
 ```
 
