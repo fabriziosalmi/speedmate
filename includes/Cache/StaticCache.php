@@ -82,6 +82,7 @@ final class StaticCache
 
         $contents = ob_get_contents();
         if ($contents === false || $contents === '') {
+            Logger::log('warning', 'cache_write_empty_buffer');
             return;
         }
 
@@ -95,6 +96,7 @@ final class StaticCache
         $ttl = $this->ttl->get_ttl();
 
         if (!$this->storage->write($path, $contents, $ttl)) {
+            Logger::log('error', 'cache_write_failed', ['path' => $path]);
             return;
         }
 
@@ -165,6 +167,7 @@ final class StaticCache
 
     public function flush_all(): void
     {
+        Logger::log('info', 'cache_flush_all_triggered');
         $this->storage->flush_all();
         
         // Invalidate cached stats transients
@@ -237,10 +240,12 @@ final class StaticCache
     {
         $dir = $this->metadata->get_cache_dir_for_url($url);
         if ($dir === '') {
+            Logger::log('warning', 'cache_purge_empty_dir', ['url' => $url]);
             return;
         }
 
         if (strpos($dir, SPEEDMATE_CACHE_DIR) !== 0) {
+            Logger::log('error', 'cache_purge_invalid_dir', ['dir' => $dir, 'url' => $url]);
             return;
         }
 

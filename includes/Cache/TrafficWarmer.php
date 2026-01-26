@@ -169,6 +169,8 @@ final class TrafficWarmer
             $attempt++;
             if ($attempt < $max_attempts) {
                 usleep(10000); // 10ms
+            } else {
+                Logger::log('warning', 'hit_tracking_retry_exhausted', ['url' => $url, 'attempts' => $max_attempts]);
             }
         }
 
@@ -254,6 +256,7 @@ final class TrafficWarmer
 
         $hits = get_transient(self::TRANSIENT_KEY);
         if (!is_array($hits) || $hits === []) {
+            Logger::log('info', 'warm_no_hits');
             $this->release_lock();
             return;
         }
@@ -274,11 +277,17 @@ final class TrafficWarmer
             }
 
             $warm_url = add_query_arg('speedmate_warm', '1', $url);
-            wp_remote_get($warm_url, [
+            $response = wp_remote_get($warm_url, [
                 'timeout' => 3,
                 'blocking' => false,
                 'user-agent' => 'SpeedMate/1.0; ' . home_url('/'),
             ]);
+            
+            if (is_wp_error($response)) {
+                Logger::log('warning', 'warm_request_failed', ['url' => $url, 'error' => $response->get_error_message()]);
+            } else {
+                Logger::log('info', 'warm_request_sent', ['url' => $url, 'hits' => $count]);
+            }
         }
 
         delete_transient(self::TRANSIENT_KEY);

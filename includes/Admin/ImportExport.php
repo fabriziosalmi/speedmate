@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SpeedMate\Admin;
 
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Singleton;
 
 /**
@@ -84,6 +85,8 @@ final class ImportExport
 
         $config = $this->export();
 
+        Logger::log('info', 'config_exported', ['user' => wp_get_current_user()->user_login]);
+
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="speedmate-config-' . gmdate('Y-m-d') . '.json"');
         echo wp_json_encode($config, JSON_PRETTY_PRINT);
@@ -116,12 +119,14 @@ final class ImportExport
         check_admin_referer('speedmate_import');
 
         if (!isset($_FILES['import_file'])) {
+            Logger::log('warning', 'import_no_file');
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=no_file'));
             exit;
         }
 
         $file = $_FILES['import_file'];
         if ($file['error'] !== UPLOAD_ERR_OK) {
+            Logger::log('error', 'import_upload_failed', ['error_code' => $file['error']]);
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=upload_failed'));
             exit;
         }
@@ -130,6 +135,7 @@ final class ImportExport
         $filename = isset($file['name']) ? sanitize_file_name($file['name']) : '';
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         if ($ext !== 'json') {
+            Logger::log('warning', 'import_invalid_extension', ['extension' => $ext, 'filename' => $filename]);
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_extension'));
             exit;
         }
@@ -140,12 +146,14 @@ final class ImportExport
             $mime_type = mime_content_type($file['tmp_name']);
         }
         if (!in_array($mime_type, ['application/json', 'text/plain'], true)) {
+            Logger::log('warning', 'import_invalid_mime', ['mime_type' => $mime_type, 'filename' => $filename]);
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_mime'));
             exit;
         }
 
         // Security: Validate file size (max 1MB)
         if (isset($file['size']) && $file['size'] > SPEEDMATE_MAX_IMPORT_SIZE) {
+            Logger::log('warning', 'import_file_too_large', ['size' => $file['size'], 'max' => SPEEDMATE_MAX_IMPORT_SIZE]);
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=file_too_large'));
             exit;
         }
@@ -158,15 +166,18 @@ final class ImportExport
 
         $data = json_decode($content, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
+            Logger::log('error', 'import_invalid_json', ['error' => json_last_error_msg()]);
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_json'));
             exit;
         }
 
         if (!$this->import($data)) {
+            Logger::log('error', 'import_invalid_data');
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_data'));
             exit;
         }
 
+        Logger::log('info', 'config_imported', ['user' => wp_get_current_user()->user_login, 'filename' => $filename]);
         wp_redirect(admin_url('admin.php?page=speedmate&import_success=1'));
         exit;
     }

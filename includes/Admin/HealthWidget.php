@@ -7,6 +7,7 @@ namespace SpeedMate\Admin;
 use SpeedMate\Cache\StaticCache;
 use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Singleton;
 
 /**
@@ -157,6 +158,9 @@ final class HealthWidget
     private function check_cache_dir(): array
     {
         $writable = is_writable(SPEEDMATE_CACHE_DIR);
+        if (!$writable) {
+            Logger::log('error', 'health_check_cache_dir_not_writable', ['path' => SPEEDMATE_CACHE_DIR]);
+        }
         return [
             'status' => $writable ? 'good' : 'error',
             'message' => $writable ? 'Cache directory is writable' : 'Cache directory is not writable',
@@ -180,11 +184,16 @@ final class HealthWidget
 
         $htaccess = trailingslashit(get_home_path()) . '.htaccess';
         if (!file_exists($htaccess)) {
+            Logger::log('warning', 'health_check_htaccess_missing', ['path' => $htaccess]);
             return ['status' => 'warning', 'message' => '.htaccess file not found'];
         }
 
         $content = file_get_contents($htaccess);
         $has_rules = strpos($content, 'SpeedMate') !== false;
+
+        if (!$has_rules) {
+            Logger::log('warning', 'health_check_htaccess_rules_missing', ['path' => $htaccess]);
+        }
 
         return [
             'status' => $has_rules ? 'good' : 'warning',

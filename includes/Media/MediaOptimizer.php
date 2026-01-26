@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SpeedMate\Media;
 
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Container;
 use SpeedMate\Utils\Singleton;
 
@@ -87,6 +88,7 @@ final class MediaOptimizer
         }
 
         if (!class_exists('DOMDocument')) {
+            Logger::log('error', 'dom_document_unavailable');
             return $content;
         }
 
@@ -107,11 +109,13 @@ final class MediaOptimizer
         libxml_clear_errors();
 
         if (!$loaded) {
+            Logger::log('warning', 'media_optimizer_parse_failed');
             return $content;
         }
 
         $wrapper = $dom->getElementById('speedmate-wrapper');
         if (!$wrapper) {
+            Logger::log('warning', 'media_optimizer_wrapper_missing');
             return $content;
         }
 
@@ -183,6 +187,7 @@ final class MediaOptimizer
 
             $attachment_id = attachment_url_to_postid($this->normalize_src($src));
             if (!$attachment_id) {
+                Logger::log('debug', 'dimension_injection_no_attachment', ['src' => $src]);
                 continue;
             }
 
