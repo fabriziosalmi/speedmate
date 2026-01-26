@@ -260,7 +260,7 @@ What actually happens
 ## Environment
 - WordPress version: 6.4
 - PHP version: 8.1
-- SpeedMate version: 0.3.1
+- SpeedMate version: 0.4.1
 - Browser: Chrome 120
 ```
 
