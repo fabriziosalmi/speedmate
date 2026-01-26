@@ -6,6 +6,7 @@ namespace SpeedMate\Admin;
 
 use SpeedMate\Cache\StaticCache;
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Formatter;
 
 /**
  * Renders admin page HTML and formats display values.
@@ -186,24 +187,14 @@ final class AdminRenderer
     /**
      * Format milliseconds to human-readable duration.
      *
+     * Delegates to Formatter::format_duration() for centralized formatting.
+     *
      * @param int $ms Duration in milliseconds.
+     *
      * @return string Formatted duration string.
      */
     public function format_duration(int $ms): string
     {
-        if ($ms <= 0) {
-            return '0 min';
-        }
-
-        $seconds = (int) floor($ms / 1000);
-        $minutes = (int) floor($seconds / 60);
-        $hours = (int) floor($minutes / 60);
-        $minutes = $minutes % 60;
-
-        if ($hours > 0) {
-            return sprintf('%d h %d min', $hours, $minutes);
-        }
-
-        return sprintf('%d min', $minutes);
+        return Formatter::format_duration($ms);
     }
 }
