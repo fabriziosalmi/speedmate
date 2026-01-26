@@ -127,10 +127,11 @@ Individual
 
 # Playwright E2E only
 cd tests/e2e && npm test
-```
+
 
 ### Code Quality
 Static analysis and coding standards:
+
 ```bash
 composer install
 composer phpcs      # PHP_CodeSniffer against WordPress standards
@@ -145,16 +146,17 @@ composer phpstan    # Static analysis
 ### Git Hooks
 ```bash
 git config core.hooksPath .githooks  # Pre-push PHPUnit tests
-```ogic
+```
+
 - `/includes/class-speedmate-lcp.php` - Auto-LCP detection and injection
 - `/admin/` - Settings UI and admin functionality
 
 ### Caching Strategy
-1. Request intercepted via `template_redirect` hook (priority 1)
+1. Request intercepted via `template_redirect` hook
 2. Implementation
 
 ### Caching
-1. `template_redirect` hook intercepts requests (priority 1)
+1. `template_redirect` hook intercepts requests
 2. Cache key: URL + mobile detection + login status
 3. Cached HTML served with `X-SpeedMate-Cache: HIT` header
 4. Output buffering captures HTML on miss
@@ -185,7 +187,7 @@ Tracked data:
 
 Access via:
 - Dashboard widget
-- Admin barche)
+- Admin barche
 2. Check `wp-content/cache/speedmate/` directory exists and is writable
 3. Confirm no conflicting caching plugins are active
 4. Review PHP error logs for permission issues
@@ -197,7 +199,7 @@ Access via:
 4. Disable Beast Mode and report issue if whitelisting doesn't resolve
 
 ### Dynamic Content Not Updating
-1. Verify `[speedmate_dynamic]` shortcode syntax
+1. Verify [speedmate_dynamic] shortcode syntax
 2. Check that dynamic content is within the shortcode wrapper
 3. Flush cache to regenerate pages with updated fragments
 
