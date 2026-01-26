@@ -2,6 +2,65 @@
 
 Configure SpeedMate for WordPress multisite networks with per-site isolation and network-wide defaults.
 
+## Multisite Architecture
+
+```mermaid
+graph TB
+    subgraph "Network Level"
+        A[Network Admin] --> B[Network Settings]
+        B --> C[Default Configuration]
+    end
+    
+    subgraph "Site Level"
+        D[Site 1] --> E1[Site 1 Settings]
+        F[Site 2] --> E2[Site 2 Settings]
+        G[Site 3] --> E3[Site 3 Settings]
+    end
+    
+    C -->|Fallback| E1
+    C -->|Fallback| E2
+    C -->|Fallback| E3
+    
+    E1 --> H1[Site 1 Cache<br/>/cache/site-1/]
+    E2 --> H2[Site 2 Cache<br/>/cache/site-2/]
+    E3 --> H3[Site 3 Cache<br/>/cache/site-3/]
+    
+    subgraph "Cache Storage"
+        I[Main Cache Dir]
+        I --> H1
+        I --> H2
+        I --> H3
+    end
+    
+    style A fill:#4A90E2
+    style C fill:#F5A623
+    style I fill:#7ED321
+```
+
+### Settings Hierarchy
+
+```mermaid
+flowchart LR
+    A[Request Setting] --> B{Site-Specific<br/>Setting Exists?}
+    
+    B -->|Yes| C{Override<br/>Allowed?}
+    
+    C -->|Yes| D[Use Site Setting]
+    C -->|No| E[Use Network Default]
+    
+    B -->|No| E
+    
+    D --> F[Apply Configuration]
+    E --> F
+    
+    F --> G([Setting Applied])
+    
+    style A fill:#4A90E2
+    style D fill:#7ED321
+    style E fill:#F5A623
+    style G fill:#4A90E2
+```
+
 ## Network Activation
 
 ### Activate Network-Wide

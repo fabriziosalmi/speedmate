@@ -1,26 +1,97 @@
 # Beast Mode
 
-Beast Mode is SpeedMate's intelligent automatic caching system that learns from traffic patterns to cache high-traffic pages automatically.
+Beast Mode is SpeedMate's aggressive JavaScript delay strategy that defers all script execution until user interaction.
 
 ## What is Beast Mode?
 
-Traditional caching requires manual configuration of which pages to cache. Beast Mode eliminates this by:
+Unlike Safe Mode which uses standard optimizations, Beast Mode delays JavaScript execution until the first user interaction (click, scroll, or keypress):
 
-- **Analyzing Traffic**: Monitors page views in real-time
-- **Learning Patterns**: Identifies high-traffic pages automatically
-- **Auto-Caching**: Caches popular pages without manual intervention
-- **Adaptive**: Adjusts cache strategy based on changing traffic
+- **Delayed Execution**: All `<script>` tags converted to delayed format
+- **User-Triggered**: Scripts execute on first click/scroll/keypress
+- **LCP Optimization**: Prioritizes visual content loading
+- **Aggressive**: Maximum performance at cost of delayed interactivity
 
 ## How It Works
 
+### JavaScript Delay Flow
+
+```mermaid
+flowchart TB
+    Start([Page Load]) --> Parse[Parse HTML]
+    Parse --> FindScripts{Find Script Tags}
+    
+    FindScripts --> ProcessScripts[Process Each Script]
+    
+    ProcessScripts --> CheckType{Script Type?}
+    
+    CheckType -->|Inline| ConvertInline[Convert to type='speedmate-delayed']
+    CheckType -->|External| ConvertExternal[Convert src to data-speedmate-src]
+    CheckType -->|Excluded| Skip[Keep Original]
+    
+    ConvertInline --> StoreScript[Store in Delayed Queue]
+    ConvertExternal --> StoreScript
+    Skip --> Continue
+    
+    StoreScript --> WaitInteraction{Wait for<br/>User Action}
+    
+    WaitInteraction -->|Click| Trigger[Trigger Event]
+    WaitInteraction -->|Scroll| Trigger
+    WaitInteraction -->|Keypress| Trigger
+    
+    Trigger --> ExecuteAll[Execute All Delayed Scripts]
+    ExecuteAll --> RestoreOriginal[Restore Original Script Tags]
+    RestoreOriginal --> RunScripts[Run Scripts in Order]
+    
+    Continue & RunScripts --> End([Page Interactive])
+    
+    style Start fill:#4A90E2
+    style WaitInteraction fill:#F5A623
+    style ExecuteAll fill:#7ED321
+    style End fill:#4A90E2
 ```
-User Request → Traffic Analysis → Score Calculation
-                                        ↓
-                                  Score > Threshold?
-                                        ↓
-                                  Auto-Cache Page
-                                        ↓
-                                  Serve from Cache
+
+### Performance Impact
+
+```mermaid
+gantt
+    title Page Load Timeline Comparison
+    dateFormat X
+    axisFormat %s
+    
+    section Safe Mode
+    HTML Parse          :0, 200
+    CSS Load           :200, 400
+    JS Download        :400, 800
+    JS Parse/Execute   :800, 1200
+    LCP                :1200, 1400
+    FCP                :400, 600
+    Interactive        :1200, 1400
+    
+    section Beast Mode
+    HTML Parse          :0, 200
+    CSS Load           :200, 400
+    LCP                :400, 600
+    FCP                :200, 400
+    User Interaction   :600, 1000
+    JS Download        :1000, 1400
+    JS Parse/Execute   :1400, 1800
+    Interactive        :1400, 1800
+```
+
+## How It Works (Text)
+
+```
+User Request → Page Load → Parse HTML
+                              ↓
+                        Find <script> tags
+                              ↓
+                        Convert to delayed format
+                              ↓
+                        Wait for user interaction
+                              ↓
+                        (click/scroll/keypress)
+                              ↓
+                        Execute all scripts
 ```
 
 ### Scoring Algorithm

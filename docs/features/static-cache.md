@@ -4,12 +4,93 @@ SpeedMate's static cache engine stores fully-rendered HTML pages on disk, servin
 
 ## How It Works
 
+### Cache Flow Diagram
+
+```mermaid
+flowchart TB
+    Start([HTTP Request]) --> AdvCache{advanced-cache.php}
+    
+    AdvCache --> CheckCache{Cache File<br/>Exists?}
+    
+    CheckCache -->|Yes| ValidCache{Cache<br/>Valid?}
+    ValidCache -->|Yes| ServeCache[Serve Cached HTML]
+    ValidCache -->|No TTL Expired| DeleteCache[Delete Expired Cache]
+    
+    CheckCache -->|No| InitWP[Initialize WordPress]
+    DeleteCache --> InitWP
+    
+    InitWP --> GenerateHTML[Generate HTML Page]
+    GenerateHTML --> Hooks{SpeedMate<br/>Hooks}
+    
+    Hooks --> OutputBuffer[Output Buffer Capture]
+    OutputBuffer --> ProcessHTML[Process HTML]
+    
+    ProcessHTML --> ApplyOptimizations[Apply Optimizations:<br/>- Beast Mode JS<br/>- Critical CSS<br/>- Preload Hints<br/>- LCP Detection]
+    
+    ApplyOptimizations --> SaveCache[Save HTML to Cache]
+    SaveCache --> SaveMeta[Save Metadata JSON]
+    SaveMeta --> CompressGzip[Gzip Compression]
+    
+    CompressGzip --> ServeFresh[Serve Fresh HTML]
+    ServeCache --> End([Response Sent])
+    ServeFresh --> End
+    
+    style Start fill:#4A90E2
+    style ServeCache fill:#7ED321
+    style InitWP fill:#F5A623
+    style SaveCache fill:#7ED321
+    style End fill:#4A90E2
+```
+
+### Cache Invalidation Flow
+
+```mermaid
+flowchart LR
+    subgraph "Trigger Events"
+        A1[Post Update]
+        A2[Comment Added]
+        A3[Theme Switch]
+        A4[Plugin Update]
+        A5[Manual Flush]
+    end
+    
+    A1 & A2 & A3 & A4 & A5 --> B[WordPress Hook Fired]
+    
+    B --> C{Invalidation<br/>Strategy}
+    
+    C -->|Specific| D[Delete Related Cache]
+    C -->|Cascade| E[Delete Related + Categories]
+    C -->|Full| F[Flush All Cache]
+    
+    D --> G1[Delete Post Cache]
+    G1 --> G2[Delete Homepage Cache]
+    
+    E --> H1[Delete Post Cache]
+    H1 --> H2[Delete Category Caches]
+    H2 --> H3[Delete Archive Caches]
+    H3 --> H4[Delete Homepage Cache]
+    
+    F --> I[Delete All Cache Files]
+    I --> J[Clear All Metadata]
+    
+    G2 & H4 & J --> K[Update Stats]
+    K --> L([Cache Invalidated])
+    
+    style B fill:#F5A623
+    style D fill:#7ED321
+    style E fill:#F8E71C
+    style F fill:#D0021B
+    style L fill:#4A90E2
+```
+
+## Detailed Process
+
 1. **First Request**: WordPress generates HTML, SpeedMate saves it to disk
 2. **Subsequent Requests**: `advanced-cache.php` serves cached HTML directly
 3. **Cache Invalidation**: Automatic invalidation on post updates, comments, etc.
 4. **Cache Expiration**: TTL-based expiration with configurable lifetime
 
-## Architecture
+## Architecture (Legacy Text Diagram)
 
 ```
 Request → advanced-cache.php → Cache Check

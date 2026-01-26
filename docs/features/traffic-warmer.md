@@ -1,8 +1,84 @@
 # Traffic Warmer
 
-SpeedMate's Traffic Warmer proactively pre-caches pages based on user navigation patterns, ensuring cache is always warm for likely next pages.
+SpeedMate's Traffic Warmer proactively pre-caches pages based on traffic analysis and scheduling, ensuring frequently accessed pages are always cached.
 
 ## How It Works
+
+### Traffic Warming Process
+
+```mermaid
+flowchart TB
+    Start([Scheduled Event]) --> Trigger{Trigger Type}
+    
+    Trigger -->|Cron Job| CronStart[wp_schedule_event]
+    Trigger -->|Manual| ManualStart[WP-CLI/Admin]
+    Trigger -->|API| APIStart[REST Endpoint]
+    
+    CronStart & ManualStart & APIStart --> LoadStats[Load Traffic Stats]
+    
+    LoadStats --> AnalyzeStats{Analyze Stats}
+    
+    AnalyzeStats --> GetTopPages[Get Top Pages by:<br/>- View Count<br/>- Request Rate<br/>- Cache Misses]
+    
+    GetTopPages --> FilterExclusions[Apply Exclusion Patterns]
+    FilterExclusions --> SortByPriority[Sort by Priority Score]
+    
+    SortByPriority --> BatchQueue[Create URL Queue]
+    
+    BatchQueue --> ProcessBatch{Process Each URL}
+    
+    ProcessBatch --> CheckCache{Cache<br/>Exists?}
+    
+    CheckCache -->|Yes & Valid| Skip[Skip URL]
+    CheckCache -->|No or Expired| Fetch[Fetch URL]
+    
+    Fetch --> GenerateHTML[WordPress Generates HTML]
+    GenerateHTML --> SaveCache[Save to Cache]
+    SaveCache --> UpdateMeta[Update Metadata]
+    
+    UpdateMeta --> MoreURLs{More URLs<br/>in Queue?}
+    Skip --> MoreURLs
+    
+    MoreURLs -->|Yes| ProcessBatch
+    MoreURLs -->|No| UpdateStats[Update Warming Stats]
+    
+    UpdateStats --> LogResults[Log Results:<br/>- URLs Warmed<br/>- Duration<br/>- Errors]
+    
+    LogResults --> End([Warming Complete])
+    
+    style Start fill:#4A90E2
+    style GenerateHTML fill:#F5A623
+    style SaveCache fill:#7ED321
+    style End fill:#4A90E2
+```
+
+### Scheduling Options
+
+```mermaid
+gantt
+    title Traffic Warmer Schedule Patterns
+    dateFormat HH:mm
+    axisFormat %H:%M
+    
+    section Hourly
+    Warm Top 20 :00:00, 1h
+    Warm Top 20 :01:00, 1h
+    Warm Top 20 :02:00, 1h
+    
+    section Twice Daily
+    Morning Warm (6 AM) :06:00, 30m
+    Evening Warm (6 PM) :18:00, 30m
+    
+    section Daily
+    Night Warm (2 AM) :02:00, 1h
+    
+    section Custom
+    Peak Hours (9-10 AM) :09:00, 1h
+    Lunch (12-1 PM) :12:00, 1h
+    Evening (5-6 PM) :17:00, 1h
+```
+
+## How It Works (Text)
 
 ```
 User visits Page A

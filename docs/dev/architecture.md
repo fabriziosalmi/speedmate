@@ -6,6 +6,100 @@ SpeedMate architecture overview and design patterns.
 
 SpeedMate follows a modular, singleton-based architecture with clear separation of concerns.
 
+### Component Architecture
+
+```mermaid
+graph TB
+    subgraph "Bootstrap Layer"
+        A[speedmate.php] --> B[Plugin Core]
+    end
+    
+    subgraph "Admin Layer"
+        B --> C[Admin Interface]
+        C --> C1[Settings Page]
+        C --> C2[Health Dashboard]
+        C --> C3[Import/Export]
+    end
+    
+    subgraph "Cache Layer"
+        B --> D[Cache Engine]
+        D --> D1[StaticCache]
+        D --> D2[TrafficWarmer]
+        D --> D3[DynamicFragments]
+    end
+    
+    subgraph "Media Layer"
+        B --> E[Media Optimizer]
+        E --> E1[WebPConverter]
+        E --> E2[Image Dimensions]
+    end
+    
+    subgraph "Performance Layer"
+        B --> F[Perf Features]
+        F --> F1[CriticalCSS]
+        F --> F2[PreloadHints]
+        F --> F3[AutoLCP]
+        F --> F4[BeastMode]
+    end
+    
+    subgraph "Utility Layer"
+        B --> G[Utils]
+        G --> G1[Settings]
+        G --> G2[Logger]
+        G --> G3[Stats]
+        G --> G4[Filesystem]
+        G --> G5[Container DI]
+    end
+    
+    subgraph "API Layer"
+        B --> H[REST API]
+        H --> H1[BatchEndpoints]
+        H --> H2[Cache Endpoints]
+    end
+    
+    subgraph "CLI Layer"
+        B --> I[WP-CLI]
+        I --> I1[Cache Commands]
+        I --> I2[Stats Commands]
+    end
+    
+    style B fill:#4A90E2
+    style D fill:#7ED321
+    style F fill:#F5A623
+    style G fill:#BD10E0
+```
+
+### Request Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant AdvCache as advanced-cache.php
+    participant Cache as StaticCache
+    participant WP as WordPress
+    participant Plugin as SpeedMate Plugin
+    
+    Client->>AdvCache: HTTP Request
+    
+    alt Cache Hit
+        AdvCache->>Cache: Check cache file
+        Cache-->>AdvCache: HTML exists
+        AdvCache->>Client: Serve cached HTML
+        Note over Client,AdvCache: Fast path (no WP init)
+    else Cache Miss
+        AdvCache->>WP: Initialize WordPress
+        WP->>Plugin: Load SpeedMate
+        Plugin->>WP: Register hooks
+        WP->>WP: Generate page
+        WP->>Plugin: output_buffer (shutdown)
+        Plugin->>Cache: Save HTML to cache
+        Plugin->>Client: Serve HTML
+        Note over Client,Plugin: Slow path (full WP init)
+    end
+```
+
+## Old Text-Based Diagram
+
 ```
 speedmate.php (Bootstrap)
     ↓
