@@ -5,13 +5,40 @@ declare(strict_types=1);
 namespace SpeedMate\Utils;
 
 /**
- * Multisite helper for SpeedMate
- * Handles network-wide and per-site cache management
+ * WordPress Multisite support for SpeedMate.
+ *
+ * Features:
+ * - Per-site cache isolation
+ * - Network-wide settings inheritance
+ * - Site-specific overrides
+ * - Network admin capabilities
+ *
+ * Cache structure:
+ * - Single site: /cache/speedmate/
+ * - Multisite: /cache/speedmate/site-{ID}/
+ * - Network cache: /cache/speedmate-network/
+ *
+ * Settings hierarchy:
+ * 1. Network settings (shared defaults)
+ * 2. Site-specific overrides
+ * 3. wp_parse_args() merges both
+ *
+ * Use cases:
+ * - Enterprise WordPress networks
+ * - Multiple brands on one install
+ * - Shared hosting with multiple sites
+ *
+ * @package SpeedMate\Utils
+ * @since 0.1.0
  */
 final class Multisite
 {
     /**
-     * Check if multisite is enabled
+     * Check if WordPress Multisite is enabled.
+     *
+     * Wrapper around is_multisite() for consistency.
+     *
+     * @return bool True if multisite enabled, false otherwise.
      */
     public static function is_multisite(): bool
     {
@@ -19,7 +46,16 @@ final class Multisite
     }
 
     /**
-     * Get site-specific cache directory
+     * Get cache directory for current site.
+     *
+     * Returns:
+     * - Single site: SPEEDMATE_CACHE_DIR (e.g., /wp-content/cache/speedmate)
+     * - Multisite: SPEEDMATE_CACHE_DIR/site-{ID} (e.g., /wp-content/cache/speedmate/site-2)
+     *
+     * Ensures cache isolation between sites in network.
+     * Each site's cache is independent and can be flushed separately.
+     *
+     * @return string Site-specific cache directory path.
      */
     public static function get_site_cache_dir(): string
     {
@@ -32,7 +68,18 @@ final class Multisite
     }
 
     /**
-     * Get network-wide cache directory
+     * Get network-wide cache directory.
+     *
+     * Returns:
+     * - Single site: SPEEDMATE_CACHE_DIR (same as site cache)
+     * - Multisite: /wp-content/cache/speedmate-network
+     *
+     * Use for:
+     * - Shared resources across sites
+     * - Network-wide configurations
+     * - Global caching (e.g., external API responses)
+     *
+     * @return string Network cache directory path.
      */
     public static function get_network_cache_dir(): string
     {
@@ -44,7 +91,22 @@ final class Multisite
     }
 
     /**
-     * Get settings with network fallback
+     * Get settings with network inheritance.
+     *
+     * Settings hierarchy:
+     * 1. Network settings (defaults for all sites)
+     * 2. Site-specific overrides
+     * 3. Merged result (site settings override network)
+     *
+     * Single site: Returns Settings::get()
+     * Multisite: Merges site + network settings
+     *
+     * Use case:
+     * - Network admin sets cache_ttl = 3600 (1 hour)
+     * - Site 2 overrides to 7200 (2 hours)
+     * - Result: Site 2 gets 7200, others get 3600
+     *
+     * @return array Merged settings array.
      */
     public static function get_settings(): array
     {
@@ -63,7 +125,22 @@ final class Multisite
     }
 
     /**
-     * Check if current user can manage network settings
+     * Check if current user can manage network-wide settings.
+     *
+     * Returns true if:
+     * - Multisite is enabled AND
+     * - User has manage_network_options capability
+     *
+     * Returns false for:
+     * - Single site installations
+     * - Non-network-admin users
+     *
+     * Use for:
+     * - Network settings page access
+     * - Network-wide cache operations
+     * - Global configuration changes
+     *
+     * @return bool True if user can manage network, false otherwise.
      */
     public static function can_manage_network(): bool
     {
