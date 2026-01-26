@@ -6,31 +6,50 @@ namespace SpeedMate;
 
 use SpeedMate\Admin\Admin;
 use SpeedMate\Cache\StaticCache;
+use SpeedMate\Utils\Singleton;
 
+/**
+ * Main plugin class.
+ * Orchestrates all plugin components and hooks.
+ *
+ * @package SpeedMate
+ * @since 0.4.0
+ */
 final class Plugin
 {
-    private static ?Plugin $instance = null;
+    use Singleton;
 
     private function __construct()
     {
     }
 
-    public static function instance(): Plugin
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->boot();
-        }
-
-        return self::$instance;
-    }
-
-    private function boot(): void
+    /**
+     * Initialize plugin after instance creation.
+     * Called automatically by Singleton trait after first instantiation.
+     *
+     * @return void
+     */
+    private function register_hooks(): void
     {
         $this->load_autoloader();
-        $this->register_hooks();
+        
+        add_action('init', [$this, 'register_settings'], 10, 0);
+
+        // Initialize core components
+        $this->init_admin_components();
+        $this->init_cache_components();
+        $this->init_media_components();
+        $this->init_performance_components();
+        $this->init_api_components();
+        $this->init_cli_commands();
+        $this->init_multisite();
     }
 
+    /**
+     * Load Composer autoloader.
+     *
+     * @return void
+     */
     private function load_autoloader(): void
     {
         $autoload_path = SPEEDMATE_PATH . 'vendor/autoload.php';
@@ -39,39 +58,99 @@ final class Plugin
         }
     }
 
-    private function register_hooks(): void
+    /**
+     * Initialize admin components.
+     *
+     * @return void
+     */
+    private function init_admin_components(): void
     {
-        add_action('init', [$this, 'register_settings'], 10, 0);
-
-        if (is_admin()) {
-            Admin::instance();
-            \SpeedMate\Admin\HealthWidget::instance();
-            \SpeedMate\Admin\ImportExport::instance();
+        if (!is_admin()) {
+            return;
         }
 
+        Admin::instance();
+        \SpeedMate\Admin\HealthWidget::instance();
+        \SpeedMate\Admin\ImportExport::instance();
+    }
+
+    /**
+     * Initialize cache components.
+     *
+     * @return void
+     */
+    private function init_cache_components(): void
+    {
         StaticCache::instance();
         \SpeedMate\Cache\TrafficWarmer::instance();
+        \SpeedMate\Cache\DynamicFragments::instance();
+    }
+
+    /**
+     * Initialize media optimization components.
+     *
+     * @return void
+     */
+    private function init_media_components(): void
+    {
         \SpeedMate\Media\MediaOptimizer::instance();
         \SpeedMate\Media\WebPConverter::instance();
+    }
+
+    /**
+     * Initialize performance optimization components.
+     *
+     * @return void
+     */
+    private function init_performance_components(): void
+    {
         \SpeedMate\Perf\AutoLCP::instance();
         \SpeedMate\Perf\BeastMode::instance();
         \SpeedMate\Perf\CriticalCSS::instance();
         \SpeedMate\Perf\PreloadHints::instance();
-        \SpeedMate\Cache\DynamicFragments::instance();
+    }
+
+    /**
+     * Initialize API components.
+     *
+     * @return void
+     */
+    private function init_api_components(): void
+    {
         \SpeedMate\Utils\GarbageCollector::instance();
         \SpeedMate\API\BatchEndpoints::instance();
-        
-        // Register WP-CLI commands
+    }
+
+    /**
+     * Register WP-CLI commands.
+     *
+     * @return void
+     */
+    private function init_cli_commands(): void
+    {
         if (defined('WP_CLI') && WP_CLI) {
             \WP_CLI::add_command('speedmate', \SpeedMate\CLI\Commands::class);
         }
-        
-        // Initialize multisite support
+    }
+
+    /**
+     * Initialize multisite support.
+     *
+     * @return void
+     */
+    private function init_multisite(): void
+    {
         if (is_multisite()) {
             \SpeedMate\Utils\Multisite::instance();
         }
     }
 
+    /**
+     * Register plugin settings on init.
+     * Creates default options if they don't exist.
+     *
+     * @return void
+     */
     public function register_settings(): void
     {
         if (get_option(SPEEDMATE_OPTION_KEY) === false) {
