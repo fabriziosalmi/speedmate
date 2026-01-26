@@ -4,6 +4,33 @@ declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
+/**
+ * Token bucket rate limiter for DoS protection.
+ *
+ * Features:
+ * - Sliding window rate limiting
+ * - Per-key buckets (IP, user, endpoint)
+ * - Transient-based storage
+ * - Automatic window reset
+ *
+ * Algorithm:
+ * 1. Create bucket with token count and reset time
+ * 2. Increment counter on each request
+ * 3. Deny if counter > limit
+ * 4. Reset bucket when window expires
+ *
+ * Use cases:
+ * - API endpoint protection (60 req/min)
+ * - Form submission throttling
+ * - Cache bust prevention
+ *
+ * Examples:
+ *   $allowed = RateLimiter::allow('lcp_api_' . $ip, 60, 60); // 60/min
+ *   $allowed = RateLimiter::allow('import_' . $user_id, 5, 3600); // 5/hour
+ *
+ * @package SpeedMate\Utils
+ * @since 0.1.0
+ */
 final class RateLimiter
 {
     /**

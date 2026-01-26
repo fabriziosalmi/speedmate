@@ -8,16 +8,55 @@ use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Container;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * Database garbage collection with bulk optimizations.
+ *
+ * Features:
+ * - Weekly cron schedule
+ * - Bulk SQL operations (v0.4.0 enhancement)
+ * - Configurable cleanup types
+ * - Performance logging
+ *
+ * Cleanup types:
+ * - Spam comments (if gc_spam enabled)
+ * - Post revisions (if gc_revisions enabled)
+ * - Expired transients (if gc_transients enabled)
+ * - Orphaned postmeta (if orphan_meta enabled)
+ *
+ * Bulk optimizations:
+ * - Single DELETE query per type (not per-row)
+ * - Batched operations for large datasets
+ * - Minimal memory footprint
+ *
+ * Activation:
+ *   GarbageCollector::activate(); // Schedule weekly cron
+ *   wp speedmate gc // Manual via WP-CLI
+ *
+ * @package SpeedMate\Utils
+ * @since 0.1.0
+ */
 final class GarbageCollector
 {
     use Singleton;
 
     private const CRON_HOOK = 'speedmate_garbage_collect';
 
+    /**
+     * Private constructor for Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks.
+     *
+     * Hooks:
+     * - cron_schedules: Add weekly schedule
+     * - speedmate_garbage_collect: Run cleanup
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_filter('cron_schedules', [$this, 'register_weekly_schedule']);
