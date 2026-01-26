@@ -4,6 +4,35 @@ declare(strict_types=1);
 
 namespace SpeedMate\Utils;
 
+/**
+ * Cache and performance statistics tracking.
+ *
+ * Features:
+ * - Weekly metrics (rolling week basis)
+ * - Atomic increments (ON DUPLICATE KEY UPDATE)
+ * - Rolling averages for response times
+ * - Static caching to avoid repeated table checks
+ * - Auto-table creation on first use
+ *
+ * Metrics tracked:
+ * - cache_hits: Total cache hits
+ * - cache_misses: Total cache misses
+ * - avg_uncached_ms: Average uncached response time
+ * - lcp_images_detected: LCP images found (if enabled)
+ *
+ * Storage:
+ * - Table: wp_speedmate_stats
+ * - Week key format: ISO 8601 week (YYYYWW, e.g., 202604)
+ * - Unique index: (metric_name, week_key)
+ *
+ * Usage:
+ *   Stats::increment('cache_hits');
+ *   Stats::record_uncached_time(350);
+ *   $stats = Stats::get();
+ *
+ * @package SpeedMate\Utils
+ * @since 0.1.0
+ */
 final class Stats
 {
     private const TABLE_NAME = 'speedmate_stats';
@@ -11,6 +40,25 @@ final class Stats
     /** @var bool|null Cache for table existence check within request */
     private static $table_exists = null;
 
+    /**
+     * Create stats table if it doesn't exist.
+     *
+     * Table structure:
+     * - id: Auto-increment primary key
+     * - metric_name: Statistic identifier (varchar 50)
+     * - metric_value: Numeric value (bigint)
+     * - week_key: ISO week (varchar 10, format: YYYYWW)
+     * - updated_at: Last update timestamp
+     *
+     * Indexes:
+     * - UNIQUE: (metric_name, week_key) - Prevents duplicates
+     * - KEY: metric_name - Fast metric lookups
+     * - KEY: week_key - Fast week filtering
+     *
+     * Uses dbDelta for safe schema updates.
+     *
+     * @return void
+     */
     public static function create_table(): void
     {
         global $wpdb;
@@ -58,6 +106,22 @@ final class Stats
         return self::$table_exists;
     }
 
+    /**
+     * Get current week statistics.
+     *
+     * Returns:
+     * - cache_hits: Total hits this week
+     * - cache_misses: Total misses this week
+     * - hit_rate: Calculated percentage (0-100)
+     * - avg_uncached_ms: Average uncached response time
+     * - lcp_images_detected: LCP images found (if enabled)
+     * - week_key: Current ISO week (YYYYWW)
+     *
+     * If table doesn't exist, returns defaults (all zeros).
+     * Metrics reset automatically at week boundary.
+     *
+     * @return array Weekly statistics with calculated hit_rate.
+     */
     public static function get(): array
     {
         global $wpdb;
@@ -92,6 +156,24 @@ final class Stats
         return $stats;
     }
 
+    /**
+     * Atomically increment a metric counter.
+     *
+     * Uses INSERT ... ON DUPLICATE KEY UPDATE for atomic increments.
+     * Creates table if it doesn't exist.
+     *
+     * Common metrics:
+     * - 'cache_hits': Successful cache retrievals
+     * - 'cache_misses': Cache not found or expired
+     * - 'lcp_images_detected': LCP images identified
+     *
+     * Step value is clamped to minimum of 1.
+     *
+     * @param string $key  Metric name to increment.
+     * @param int    $step Increment amount (default 1, min 1).
+     *
+     * @return void
+     */
     public static function increment(string $key, int $step = 1): void
     {
         global $wpdb;
@@ -117,6 +199,23 @@ final class Stats
         );
     }
 
+    /**
+     * Record uncached response time with rolling average.
+     *
+     * Maintains a rolling average of uncached page generation times:
+     * - First value: Direct assignment
+     * - Subsequent: (old_avg * 9 + new_value) / 10
+     *
+     * This gives more weight to historical data while incorporating new samples.
+     * Also ensures avg_cached_ms exists with default value for consistency.
+     *
+     * Used to calculate cache performance benefit:
+     *   speedup = (avg_uncached_ms - avg_cached_ms) / avg_uncached_ms * 100%
+     *
+     * @param int $ms Uncached page generation time in milliseconds.
+     *
+     * @return void
+     */
     public static function record_uncached_time(int $ms): void
     {
         global $wpdb;
@@ -181,8 +280,24 @@ final class Stats
             );
         }
     }
-
-    public static function add_time_saved_from_hit(): void
+    /**
+     * Calculate and accumulate time saved by caching.
+     *
+     * Calculates time saved for a single cache hit:
+     *   time_saved = avg_uncached_ms - avg_cached_ms
+     *
+     * Accumulates total time saved this week.
+     * Only increments if uncached time > cached time (sanity check).
+     *
+     * Defaults:
+     * - avg_uncached_ms: 0 (if not recorded)
+     * - avg_cached_ms: 50ms (default cache read time)
+     *
+     * Used to show users tangible performance benefit:
+     *   \"Cache saved X seconds this week\"
+     *
+     * @return void
+     */    public static function add_time_saved_from_hit(): void
     {
         global $wpdb;
 
@@ -239,6 +354,22 @@ final class Stats
         );
     }
 
+    /**
+     * Get default statistics values.
+     *
+     * Returns baseline statistics when table doesn't exist
+     * or no data recorded for current week.
+     *
+     * Defaults:
+     * - warmed_pages: 0 - Pages warmed by TrafficWarmer
+     * - lcp_preloads: 0 - LCP images preloaded by AutoLCP
+     * - time_saved_ms: 0 - Cumulative time saved by caching
+     * - avg_uncached_ms: 0 - Average uncached response time
+     * - avg_cached_ms: 50 - Estimated cache read time
+     * - week_key: '' - Current ISO week (set by get())
+     *
+     * @return array Default statistics structure.
+     */
     private static function get_defaults(): array
     {
         return [
