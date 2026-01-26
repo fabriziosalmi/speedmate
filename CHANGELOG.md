@@ -2,6 +2,41 @@
 
 All notable changes to SpeedMate will be documented in this file.
 
+## [0.3.3] - 2026-01-26
+
+### Security Hardening (P0 - Critical)
+- **CRITICAL**: Enhanced path traversal protection with dot-file rejection and special character validation
+- **CRITICAL**: Added comprehensive security test suite (SecurityTest.php) with 20+ security tests
+- **HIGH**: Strengthened CSRF protection - removed easily-spoofed referer check, rely on WordPress nonce only
+- **HIGH**: Added deep JSON schema validation for imports - whitelist allowed keys, validate types and values
+
+### Security Improvements
+- Path validation now rejects:
+  - Absolute paths
+  - Dot-files (.htaccess, .git, etc)
+  - Special characters (<, >, script tags, etc)
+  - URL-encoded traversal attempts
+  - Null byte injection
+- Import validation now includes:
+  - Key whitelist (only allowed settings accepted)
+  - Type validation (boolean, array, numeric fields)
+  - Value range validation (mode, TTL values)
+  - Malicious key rejection
+
+### Testing
+- Added 20+ security-focused integration tests covering:
+  - Path traversal attacks (../, encoded, absolute paths)
+  - Dot-file access attempts
+  - Null byte injection
+  - Special character injection
+  - Rate limiter enforcement and window expiration
+  - Import validation and malicious data rejection
+
+### Developer Notes
+- All P0 critical security issues from deep analysis addressed
+- Security test suite ensures regression prevention
+- Closes #15 - Enhanced path traversal protection
+
 ## [0.3.2] - 2026-01-26
 
 ### Security Fixes

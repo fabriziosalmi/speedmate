@@ -147,6 +147,99 @@ final class ImportExport
             return false;
         }
 
+        // Security: Whitelist allowed settings keys
+        $allowed_keys = [
+            'mode',
+            'beast_whitelist',
+            'beast_blacklist',
+            'beast_apply_all',
+            'logging_enabled',
+            'csp_nonce',
+            'cache_ttl',
+            'cache_ttl_homepage',
+            'cache_ttl_posts',
+            'cache_ttl_pages',
+            'cache_exclude_urls',
+            'cache_exclude_cookies',
+            'cache_exclude_query_params',
+            'warmer_enabled',
+            'warmer_frequency',
+            'warmer_max_urls',
+            'warmer_concurrent',
+            'webp_enabled',
+            'critical_css_enabled',
+            'preload_hints_enabled',
+            'garbage_collector_enabled',
+            'garbage_collector_delete_spam',
+        ];
+
+        // Security: Remove any keys not in whitelist
+        foreach (array_keys($data['settings']) as $key) {
+            if (!in_array($key, $allowed_keys, true)) {
+                unset($data['settings'][$key]);
+            }
+        }
+
+        // Security: Validate mode value
+        if (isset($data['settings']['mode'])) {
+            $valid_modes = ['disabled', 'safe', 'beast'];
+            if (!in_array($data['settings']['mode'], $valid_modes, true)) {
+                return false;
+            }
+        }
+
+        // Security: Validate boolean fields
+        $boolean_fields = [
+            'beast_apply_all',
+            'logging_enabled',
+            'csp_nonce',
+            'warmer_enabled',
+            'webp_enabled',
+            'critical_css_enabled',
+            'preload_hints_enabled',
+            'garbage_collector_enabled',
+            'garbage_collector_delete_spam',
+        ];
+
+        foreach ($boolean_fields as $field) {
+            if (isset($data['settings'][$field]) && !is_bool($data['settings'][$field])) {
+                return false;
+            }
+        }
+
+        // Security: Validate array fields
+        $array_fields = [
+            'beast_whitelist',
+            'beast_blacklist',
+            'cache_exclude_urls',
+            'cache_exclude_cookies',
+            'cache_exclude_query_params',
+        ];
+
+        foreach ($array_fields as $field) {
+            if (isset($data['settings'][$field]) && !is_array($data['settings'][$field])) {
+                return false;
+            }
+        }
+
+        // Security: Validate numeric fields
+        $numeric_fields = [
+            'cache_ttl',
+            'cache_ttl_homepage',
+            'cache_ttl_posts',
+            'cache_ttl_pages',
+            'warmer_max_urls',
+            'warmer_concurrent',
+        ];
+
+        foreach ($numeric_fields as $field) {
+            if (isset($data['settings'][$field])) {
+                if (!is_numeric($data['settings'][$field]) || $data['settings'][$field] < 0) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 

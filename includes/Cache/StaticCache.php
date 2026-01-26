@@ -318,6 +318,18 @@ final class StaticCache
             return '';
         }
 
+        // Security: Reject paths starting with dot (hidden files/directories)
+        if (strpos($uri, '.') === 0) {
+            Logger::log('warning', 'dotfile_cache_path_attempt', ['uri' => $uri]);
+            return '';
+        }
+
+        // Security: Validate path contains only safe characters
+        if (preg_match('/[^a-zA-Z0-9\/\-_]/', $uri) && $uri !== '') {
+            Logger::log('warning', 'invalid_characters_in_path', ['uri' => $uri]);
+            return '';
+        }
+
         $path = trailingslashit(SPEEDMATE_CACHE_DIR . '/' . $host . '/' . $uri);
 
         return $path . 'index.html';
@@ -342,6 +354,18 @@ final class StaticCache
         // Additional security: ensure no null bytes
         if (strpos($path, chr(0)) !== false) {
             Logger::log('warning', 'invalid_cache_path_for_url', ['url' => $url]);
+            return '';
+        }
+
+        // Security: Reject paths starting with dot
+        if (strpos($path, '.') === 0) {
+            Logger::log('warning', 'dotfile_cache_path_for_url', ['url' => $url]);
+            return '';
+        }
+
+        // Security: Validate path contains only safe characters
+        if (preg_match('/[^a-zA-Z0-9\/\-_]/', $path) && $path !== '') {
+            Logger::log('warning', 'invalid_characters_in_url_path', ['url' => $url]);
             return '';
         }
 

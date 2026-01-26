@@ -62,17 +62,17 @@ final class BatchEndpoints
     public function check_permissions(\WP_REST_Request $request): bool
     {
         // WordPress REST API automatically handles nonce verification via cookies
-        // for authenticated requests. The wp_rest nonce is checked automatically.
-        // Additional verification: ensure user has proper capabilities
+        // for authenticated requests. The wp_rest nonce is checked automatically
+        // by WordPress core when the request includes X-WP-Nonce header.
+        
+        // Verify user has proper capabilities
         if (!current_user_can('manage_options')) {
             return false;
         }
 
-        // Additional CSRF protection: verify referer for critical operations
-        $referer = $request->get_header('referer');
-        if ($referer && strpos($referer, admin_url()) !== 0 && strpos($referer, home_url()) !== 0) {
-            return false;
-        }
+        // Note: Referer checking removed as it's easily spoofed and provides
+        // false sense of security. WordPress REST API nonce is sufficient.
+        // Clients must include X-WP-Nonce header with valid nonce.
 
         return true;
     }
