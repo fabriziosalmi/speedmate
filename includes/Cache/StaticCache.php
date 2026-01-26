@@ -305,8 +305,18 @@ final class StaticCache
         }
 
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        // Security: Remove query string and sanitize path
         $uri = strtok($uri, '?') ?: '/';
+        // Remove any potential directory traversal attempts
+        $uri = str_replace(['../', '..\\'], '', $uri);
+        // Sanitize and normalize the path
         $uri = trim($uri, '/');
+
+        // Additional security: ensure no absolute paths or null bytes
+        if (strpos($uri, chr(0)) !== false || strpos($uri, DIRECTORY_SEPARATOR) === 0) {
+            Logger::log('warning', 'invalid_cache_path_attempt', ['uri' => $uri]);
+            return '';
+        }
 
         $path = trailingslashit(SPEEDMATE_CACHE_DIR . '/' . $host . '/' . $uri);
 
@@ -325,7 +335,16 @@ final class StaticCache
             return '';
         }
 
+        // Security: Remove directory traversal attempts
+        $path = str_replace(['../', '..\\'], '', $path);
         $path = trim($path, '/');
+
+        // Additional security: ensure no null bytes
+        if (strpos($path, chr(0)) !== false) {
+            Logger::log('warning', 'invalid_cache_path_for_url', ['url' => $url]);
+            return '';
+        }
+
         $cache_path = trailingslashit(SPEEDMATE_CACHE_DIR . '/' . $host . '/' . $path);
 
         return $cache_path . 'index.html';

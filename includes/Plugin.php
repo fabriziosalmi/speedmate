@@ -105,6 +105,8 @@ final class Plugin
                 'webp_enabled' => false,
                 'critical_css_enabled' => false,
                 'preload_hints_enabled' => true,
+                'garbage_collector_enabled' => false,
+                'garbage_collector_delete_spam' => false,
             ], '', false);
         }
 

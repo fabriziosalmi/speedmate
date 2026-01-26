@@ -39,7 +39,8 @@ final class Stats
         $week_key = gmdate('oW');
 
         // Check if table exists
-        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+        $escaped_table = $wpdb->esc_like($table_name);
+        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $escaped_table)) !== $table_name) {
             return self::get_defaults();
         }
 
@@ -98,7 +99,8 @@ final class Stats
         $week_key = gmdate('oW');
 
         // Check if table exists, create if not
-        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+        $escaped_table = $wpdb->esc_like($table_name);
+        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $escaped_table)) !== $table_name) {
             self::create_table();
         }
 
@@ -162,7 +164,8 @@ final class Stats
         $week_key = gmdate('oW');
 
         // Check if table exists, create if not
-        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+        $escaped_table = $wpdb->esc_like($table_name);
+        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $escaped_table)) !== $table_name) {
             self::create_table();
         }
 

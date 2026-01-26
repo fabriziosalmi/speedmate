@@ -2,6 +2,27 @@
 
 All notable changes to SpeedMate will be documented in this file.
 
+## [0.3.2] - 2026-01-26
+
+### Security Fixes
+- **CRITICAL**: Fixed SQL injection vulnerability in Stats.php SHOW TABLES queries - now using `$wpdb->esc_like()` and `$wpdb->prepare()`
+- **CRITICAL**: Fixed path traversal vulnerability in StaticCache.php - added sanitization to prevent directory traversal attacks
+- **HIGH**: Fixed unsafe file upload in ImportExport.php - added MIME type validation, extension whitelist, and 1MB size limit
+- **HIGH**: Enhanced REST API CSRF protection - added referer validation to BatchEndpoints
+- **MEDIUM**: Improved authorization error handling - proper HTTP status codes and i18n support
+- **MEDIUM**: Verified XSS protection - all user input properly escaped with `esc_html()`
+
+### Improvements
+- **RateLimiter**: Added input validation, cache key sanitization, race condition protection, and `clear()` method
+- **GarbageCollector**: Added user controls - now disabled by default, spam deletion is optional to prevent data loss
+- **Docker**: Updated from PHP 8.1 (EOL) to PHP 8.3 for better security and performance
+- **Activation Fix**: Added explicit `require_once` for Stats.php and Migration.php to prevent class not found errors
+
+### Developer Notes
+- Created GitHub issues for future improvements: hook registration pattern (#12), code quality (#13), Perf classes hardening (#14), security tests (#10)
+- All security vulnerabilities reported on Reddit have been addressed
+- Test coverage remains at 89+ tests (43+ PHPUnit + 46+ E2E)
+
 ## [0.3.0] - 2026-01-22
 
 ### Added - High Priority Features

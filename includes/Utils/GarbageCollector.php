@@ -67,6 +67,13 @@ final class GarbageCollector
 
     public function run(): void
     {
+        // Check if garbage collection is enabled in settings
+        $settings = Settings::get();
+        if (!isset($settings['garbage_collector_enabled']) || !$settings['garbage_collector_enabled']) {
+            Logger::log('info', 'garbage_collector_skipped_disabled');
+            return;
+        }
+
         $this->cleanup();
 
         Logger::log('info', 'garbage_collector_ran');
@@ -75,7 +82,13 @@ final class GarbageCollector
     public function cleanup(): void
     {
         $this->delete_expired_transients();
-        $this->delete_spam_comments();
+        
+        // Only delete spam if explicitly enabled to prevent accidental data loss
+        $settings = Settings::get();
+        if (isset($settings['garbage_collector_delete_spam']) && $settings['garbage_collector_delete_spam']) {
+            $this->delete_spam_comments();
+        }
+        
         $this->delete_post_revisions();
         $this->delete_orphaned_postmeta();
     }

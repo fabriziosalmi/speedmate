@@ -33,7 +33,7 @@ final class ImportExport
     public function handle_export(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(esc_html__('Unauthorized', 'speedmate'), 403);
         }
 
         check_admin_referer('speedmate_export');
@@ -49,7 +49,7 @@ final class ImportExport
     public function handle_import(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(esc_html__('Unauthorized', 'speedmate'), 403);
         }
 
         check_admin_referer('speedmate_import');
@@ -65,8 +65,41 @@ final class ImportExport
             exit;
         }
 
+        // Security: Validate file extension
+        $filename = isset($file['name']) ? sanitize_file_name($file['name']) : '';
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if ($ext !== 'json') {
+            wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_extension'));
+            exit;
+        }
+
+        // Security: Validate MIME type
+        $mime_type = '';
+        if (function_exists('mime_content_type') && isset($file['tmp_name'])) {
+            $mime_type = mime_content_type($file['tmp_name']);
+        }
+        if (!in_array($mime_type, ['application/json', 'text/plain'], true)) {
+            wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_mime'));
+            exit;
+        }
+
+        // Security: Validate file size (max 1MB)
+        if (isset($file['size']) && $file['size'] > 1048576) {
+            wp_redirect(admin_url('admin.php?page=speedmate&import_error=file_too_large'));
+            exit;
+        }
+
         $content = file_get_contents($file['tmp_name']);
+        if ($content === false) {
+            wp_redirect(admin_url('admin.php?page=speedmate&import_error=read_failed'));
+            exit;
+        }
+
         $data = json_decode($content, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_json'));
+            exit;
+        }
 
         if (!$this->import($data)) {
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=invalid_data'));

@@ -59,9 +59,22 @@ final class BatchEndpoints
         ]);
     }
 
-    public function check_permissions(): bool
+    public function check_permissions(\WP_REST_Request $request): bool
     {
-        return current_user_can('manage_options');
+        // WordPress REST API automatically handles nonce verification via cookies
+        // for authenticated requests. The wp_rest nonce is checked automatically.
+        // Additional verification: ensure user has proper capabilities
+        if (!current_user_can('manage_options')) {
+            return false;
+        }
+
+        // Additional CSRF protection: verify referer for critical operations
+        $referer = $request->get_header('referer');
+        if ($referer && strpos($referer, admin_url()) !== 0 && strpos($referer, home_url()) !== 0) {
+            return false;
+        }
+
+        return true;
     }
 
     public function check_read_permissions(): bool

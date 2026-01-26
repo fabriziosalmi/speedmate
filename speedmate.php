@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SpeedMate
  * Description: Free WordPress performance with static cache, automation and Beast mode.
- * Version: 0.3.1
+ * Version: 0.3.2
  * Author: Fabrizio Salmi
  * Text Domain: speedmate
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SPEEDMATE_VERSION', '0.3.1');
+define('SPEEDMATE_VERSION', '0.3.2');
 define('SPEEDMATE_PATH', plugin_dir_path(__FILE__));
 define('SPEEDMATE_URL', plugin_dir_url(__FILE__));
 
@@ -33,6 +33,8 @@ if (file_exists($autoload_path)) {
 
 require_once SPEEDMATE_PATH . 'includes/Plugin.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
+require_once SPEEDMATE_PATH . 'includes/Utils/Stats.php';
+require_once SPEEDMATE_PATH . 'includes/Utils/Migration.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/GarbageCollector.php';
 require_once SPEEDMATE_PATH . 'includes/Cache/StaticCache.php';
 require_once SPEEDMATE_PATH . 'includes/Cache/TrafficWarmer.php';
