@@ -208,9 +208,6 @@ Pull requests welcome. Please ensure:
 - Code follows WordPress standards (`composer phpcs`)
 - Static analysis passes (`composer phpstan`)
 
-## Security
-Report security vulnerabilities privately to fabrizio.salmi@gmail.com. Please allow 48 hours for initial response.
-
 ## License
 MIT License. See [LICENSE](LICENSE) for full text.
 
