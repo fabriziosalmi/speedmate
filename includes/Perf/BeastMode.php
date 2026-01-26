@@ -8,11 +8,46 @@ use SpeedMate\Utils\CspNonce;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Container;
 use SpeedMate\Utils\Singleton;
+use SpeedMate\Utils\Logger;
 
+/**
+ * Beast Mode - Aggressive JavaScript delay optimization.
+ *
+ * Delays all JavaScript execution until user interaction (keydown, mousemove,
+ * touchmove, wheel) to dramatically improve initial page load metrics.
+ *
+ * Features:
+ * - Rewrites <script> tags to type="speedmate/delay"
+ * - Injects trigger script to load on user interaction
+ * - Whitelist/blacklist support for granular control
+ * - Safe-list for critical scripts (analytics, payment, jQuery)
+ * - Admin preview capability with speedmate_test=1
+ * - DOM-based script parsing with error handling
+ *
+ * Impact:
+ * - Faster First Contentful Paint (FCP)
+ * - Faster Largest Contentful Paint (LCP)
+ * - Reduced Total Blocking Time (TBT)
+ * - Lower Time to Interactive (TTI)
+ *
+ * @package SpeedMate\Perf
+ * @since 0.2.0
+ */
 final class BeastMode
 {
     use Singleton;
 
+    /**
+     * Built-in safe list of scripts that should not be delayed.
+     *
+     * Includes:
+     * - Google Analytics & Tag Manager
+     * - Stripe payment SDK
+     * - PayPal SDK
+     * - jQuery core
+     *
+     * @var array<string>
+     */
     private const SAFE_LIST = [
         'googletagmanager.com/gtag/js',
         'googletagmanager.com/gtm.js',
@@ -23,10 +58,23 @@ final class BeastMode
         'jquery.min.js',
     ];
 
+    /**
+     * Private constructor to enforce Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks for Beast Mode.
+     *
+     * Hooks:
+     * - template_redirect (priority 1): Start output buffering
+     * - wp_head (priority 1): Output trigger script
+     * - speedmate_cache_contents (priority 10): Rewrite script tags
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_action('template_redirect', [$this, 'start_buffer'], 1);
@@ -34,6 +82,16 @@ final class BeastMode
         add_filter('speedmate_cache_contents', [$this, 'rewrite_scripts'], 10, 1);
     }
 
+    /**
+     * Start output buffering to capture HTML for script rewriting.
+     *
+     * Hooks into template_redirect with priority 1 to ensure all
+     * output is captured. Buffer is processed by rewrite_scripts().
+     *
+     * Only runs when Beast Mode is enabled.
+     *
+     * @return void
+     */
     public function start_buffer(): void
     {
         if (!$this->is_enabled()) {
@@ -43,6 +101,20 @@ final class BeastMode
         ob_start([$this, 'rewrite_scripts']);
     }
 
+    /**
+     * Output JavaScript trigger script to load delayed scripts on user interaction.
+     *
+     * Injects non-blocking JavaScript that:
+     * - Listens for user interaction events (keydown, mousemove, touchmove, wheel)
+     * - Finds all delayed scripts (type="speedmate/delay")
+     * - Restores original script attributes and executes
+     * - Fires only once per page load
+     * - Uses {once:true,passive:true} for optimal performance
+     *
+     * Script includes CSP nonce for inline execution.
+     *
+     * @return void
+     */
     public function output_trigger_script(): void
     {
         if (!$this->is_enabled()) {
@@ -75,6 +147,31 @@ final class BeastMode
         echo '<script' . $nonce_attr . '>' . $script . '</script>' . "\n";
     }
 
+    /**
+     * Rewrite script tags to delay execution until user interaction.
+     *
+     * Process:
+     * 1. Parse HTML with DOMDocument
+     * 2. Find all <script> tags
+     * 3. Check whitelist/blacklist rules
+     * 4. Move src to data-speedmate-src
+     * 5. Change type to "speedmate/delay"
+     * 6. Preserve async/defer attributes
+     *
+     * Skips:
+     * - Scripts with data-speedmate-skip attribute
+     * - Scripts with non-JS MIME types
+     * - Scripts in whitelist (unless forced by blacklist)
+     *
+     * Error handling:
+     * - Returns original HTML on DOM parse failure
+     * - Logs parse errors via Logger
+     * - Graceful degradation if DOMDocument unavailable
+     *
+     * @param string $html HTML content to process.
+     *
+     * @return string Processed HTML with delayed scripts.
+     */
     public function rewrite_scripts(string $html): string
     {
         if (!$this->is_enabled()) {
@@ -173,6 +270,16 @@ final class BeastMode
         return $dom->saveHTML();
     }
 
+    /**
+     * Check if script URL is in safe list (should not be delayed).
+     *
+     * Combines built-in SAFE_LIST with user-defined whitelist.
+     * Uses case-insensitive substring matching.
+     *
+     * @param string $src Script URL to check.
+     *
+     * @return bool True if safe-listed, false otherwise.
+     */
     private function is_safe_listed(string $src): bool
     {
         $rules = array_merge(self::SAFE_LIST, $this->get_whitelist());
@@ -185,6 +292,16 @@ final class BeastMode
         return false;
     }
 
+    /**
+     * Check if script URL is in blacklist (must be delayed).
+     *
+     * Blacklist overrides whitelist for forced delay.
+     * Uses case-insensitive substring matching.
+     *
+     * @param string $src Script URL to check.
+     *
+     * @return bool True if blacklisted (force delay), false otherwise.
+     */
     private function is_blacklisted(string $src): bool
     {
         foreach ($this->get_blacklist() as $needle) {
@@ -196,6 +313,13 @@ final class BeastMode
         return false;
     }
 
+    /**
+     * Get user-defined whitelist of scripts that should not be delayed.
+     *
+     * Reads from Settings 'beast_whitelist' array.
+     *
+     * @return array<string> Array of URL patterns.
+     */
     private function get_whitelist(): array
     {
         $settings = Settings::get();
@@ -204,6 +328,13 @@ final class BeastMode
         return is_array($rules) ? $rules : [];
     }
 
+    /**
+     * Get user-defined blacklist of scripts that must be delayed.
+     *
+     * Blacklist overrides whitelist. Reads from Settings 'beast_blacklist' array.
+     *
+     * @return array<string> Array of URL patterns.
+     */
     private function get_blacklist(): array
     {
         $settings = Settings::get();
@@ -212,6 +343,16 @@ final class BeastMode
         return is_array($rules) ? $rules : [];
     }
 
+    /**
+     * Check if Beast Mode is enabled for current request.
+     *
+     * Requirements:
+     * - Mode must be 'beast'
+     * - Not admin, feed, or preview
+     * - Preview allowed for testing
+     *
+     * @return bool True if enabled, false otherwise.
+     */
     private function is_enabled(): bool
     {
         if (is_admin() || is_feed() || is_preview()) {
@@ -228,6 +369,16 @@ final class BeastMode
         return $this->is_preview_allowed();
     }
 
+    /**
+     * Check if Beast Mode preview is allowed for current user.
+     *
+     * Preview allowed when:
+     * - beast_apply_all is enabled (affects all users)
+     * - User has admin capability (filtered via speedmate_admin_capability)
+     * - speedmate_test=1 query parameter is present
+     *
+     * @return bool True if preview allowed, false otherwise.
+     */
     private function is_preview_allowed(): bool
     {
         $settings = Settings::get();

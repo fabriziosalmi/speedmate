@@ -12,16 +12,51 @@ use SpeedMate\Utils\CspNonce;
 use SpeedMate\Utils\Container;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * Automatically detects and preloads Largest Contentful Paint (LCP) images.
+ *
+ * Uses PerformanceObserver API in browser to detect LCP element,
+ * reports back via REST API, and stores LCP image per page.
+ * On subsequent visits, preloads the detected image for faster rendering.
+ *
+ * Features:
+ * - Real User Monitoring (RUM) based detection
+ * - Per-page LCP image storage
+ * - Automatic preload hint generation
+ * - Rate limiting and idempotency protection
+ * - Non-blocking JavaScript injection
+ *
+ * @package SpeedMate\Perf
+ * @since 0.3.0
+ */
 final class AutoLCP
 {
     use Singleton;
 
+    /**
+     * Post meta key for storing LCP image URL.
+     *
+     * @var string
+     */
     private const META_KEY = '_speedmate_lcp_image';
 
+    /**
+     * Private constructor to enforce Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks for LCP detection.
+     *
+     * Hooks:
+     * - rest_api_init: Register REST API endpoint
+     * - wp_head (priority 1): Output preload hint
+     * - wp_head (priority 99): Output observer script
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_action('rest_api_init', [$this, 'register_routes']);
@@ -29,6 +64,26 @@ final class AutoLCP
         add_action('wp_head', [$this, 'output_observer_script'], 99);
     }
 
+    /**
+     * Register REST API route for LCP reporting.
+     *
+     * Endpoint: POST /wp-json/speedmate/v1/lcp
+     * Parameters:
+     * - image_url (required): URL of the LCP image
+     * - page_url (required): URL of the page being analyzed
+     *
+     * @return void
+     */
+    /**
+     * Register REST API route for LCP reporting.
+     *
+     * Endpoint: POST /wp-json/speedmate/v1/lcp
+     * Parameters:
+     * - image_url (required): URL of the LCP image
+     * - page_url (required): URL of the page being analyzed
+     *
+     * @return void
+     */
     public function register_routes(): void
     {
         register_rest_route('speedmate/v1', '/lcp', [
@@ -48,6 +103,28 @@ final class AutoLCP
         ]);
     }
 
+    /**
+     * Handle LCP image report from browser.
+     *
+     * Validates request, checks rate limits and idempotency,
+     * then stores LCP image URL in post meta.
+     *
+     * Security checks:
+     * - Feature must be enabled
+     * - Rate limiting per IP (60 requests/minute)
+     * - Idempotency key deduplication (10min window)
+     * - Same-host validation
+     * - Valid WordPress post ID
+     *
+     * @param \WP_REST_Request $request REST API request object.
+     *
+     * @return \WP_REST_Response Response with status code:
+     *                          - 200: Success or disabled
+     *                          - 400: Invalid payload
+     *                          - 403: Forbidden host
+     *                          - 404: Post not found
+     *                          - 429: Rate limited
+     */
     public function handle_report(\WP_REST_Request $request): \WP_REST_Response
     {
         if (!$this->is_enabled()) {
@@ -93,6 +170,16 @@ final class AutoLCP
         return new \WP_REST_Response(['status' => 'ok'], 200);
     }
 
+    /**
+     * Output LCP image preload hint in HTML head.
+     *
+     * Retrieves stored LCP image URL from post meta and
+     * outputs <link rel="preload"> hint with high priority.
+     *
+     * Only outputs on singular posts/pages with detected LCP image.
+     *
+     * @return void
+     */
     public function output_preload(): void
     {
         if (!$this->is_enabled()) {
@@ -112,6 +199,20 @@ final class AutoLCP
         echo '<link rel="preload" as="image" href="' . esc_url($image_url) . '">' . "\n";
     }
 
+    /**
+     * Output PerformanceObserver JavaScript to detect LCP element.
+     *
+     * Injects non-blocking JavaScript that:
+     * - Observes largest-contentful-paint events
+     * - Extracts LCP image element
+     * - Sends report to REST API via sendBeacon
+     * - Deduplicates reports per page load
+     *
+     * Only outputs on singular posts/pages when feature enabled.
+     * Script includes CSP nonce for inline script execution.
+     *
+     * @return void
+     */
     public function output_observer_script(): void
     {
         if (!$this->is_enabled()) {
@@ -159,6 +260,13 @@ final class AutoLCP
         echo '<script' . $nonce_attr . '>' . $script . '</script>' . "\n";
     }
 
+    /**
+     * Check if Auto-LCP feature is enabled.
+     *
+     * Feature is enabled when mode is 'safe' or 'beast'.
+     *
+     * @return bool True if enabled, false otherwise.
+     */
     private function is_enabled(): bool
     {
         $settings = Settings::get();
@@ -167,6 +275,16 @@ final class AutoLCP
         return in_array($mode, ['safe', 'beast'], true);
     }
 
+    /**
+     * Check rate limit for LCP reports.
+     *
+     * Enforces 60 requests per minute per IP address.
+     * Uses RateLimiter utility with scope-specific key.
+     *
+     * @param string $scope Rate limit scope identifier.
+     *
+     * @return bool True if request allowed, false if rate limited.
+     */
     private function allow_request(string $scope): bool
     {
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
@@ -175,6 +293,16 @@ final class AutoLCP
         return RateLimiter::allow($key, 60, 60);
     }
 
+    /**
+     * Check if idempotency key was already processed.
+     *
+     * Prevents duplicate processing of the same request within 10 minutes.
+     * Stores idempotency key in transient cache.
+     *
+     * @param string $idempotency_key Unique request identifier.
+     *
+     * @return bool True if duplicate (already processed), false if new.
+     */
     private function is_duplicate(string $idempotency_key): bool
     {
         $key = 'speedmate_idem_' . md5($idempotency_key);
@@ -187,6 +315,16 @@ final class AutoLCP
         return false;
     }
 
+    /**
+     * Validate that URL is from same host as WordPress site.
+     *
+     * Security check to prevent cross-site reporting.
+     * Compares host portion of URL against home_url().
+     *
+     * @param string $url URL to validate.
+     *
+     * @return bool True if same host, false otherwise.
+     */
     private function is_same_host(string $url): bool
     {
         $home_host = wp_parse_url(home_url(), PHP_URL_HOST);
