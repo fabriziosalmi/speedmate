@@ -290,7 +290,7 @@ final class AutoLCP
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
         $key = 'speedmate_rl_' . $scope . '_' . md5($ip);
 
-        return RateLimiter::allow($key, 60, 60);
+        return RateLimiter::allow($key, SPEEDMATE_LCP_RATE_LIMIT, SPEEDMATE_LCP_RATE_WINDOW);
     }
 
     /**
@@ -310,7 +310,7 @@ final class AutoLCP
             return true;
         }
 
-        set_transient($key, 1, 10 * MINUTE_IN_SECONDS);
+        set_transient($key, 1, SPEEDMATE_IDEMPOTENCY_DURATION);
 
         return false;
     }

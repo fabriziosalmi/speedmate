@@ -356,6 +356,6 @@ final class DynamicFragments
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
         $key = 'speedmate_rl_' . $scope . '_' . md5($ip);
 
-        return RateLimiter::allow($key, 120, 60);
+        return RateLimiter::allow($key, SPEEDMATE_FRAGMENT_RATE_LIMIT, SPEEDMATE_FRAGMENT_RATE_WINDOW);
     }
 }

@@ -25,15 +25,15 @@ final class CacheTTLManager
 
         // Determine content type and return appropriate TTL
         if (is_front_page()) {
-            return (int) ($settings['cache_ttl_homepage'] ?? 3600);
+            return (int) ($settings['cache_ttl_homepage'] ?? SPEEDMATE_DEFAULT_TTL_HOMEPAGE);
         }
 
         if (is_singular('post')) {
-            return (int) ($settings['cache_ttl_posts'] ?? 7 * DAY_IN_SECONDS);
+            return (int) ($settings['cache_ttl_posts'] ?? SPEEDMATE_DEFAULT_TTL_POSTS);
         }
 
         if (is_singular('page')) {
-            return (int) ($settings['cache_ttl_pages'] ?? 30 * DAY_IN_SECONDS);
+            return (int) ($settings['cache_ttl_pages'] ?? SPEEDMATE_DEFAULT_TTL_PAGES);
         }
 
         // Default TTL for other content types
@@ -52,11 +52,11 @@ final class CacheTTLManager
 
         switch ($content_type) {
             case 'homepage':
-                return (int) ($settings['cache_ttl_homepage'] ?? 3600);
+                return (int) ($settings['cache_ttl_homepage'] ?? SPEEDMATE_DEFAULT_TTL_HOMEPAGE);
             case 'post':
-                return (int) ($settings['cache_ttl_posts'] ?? 7 * DAY_IN_SECONDS);
+                return (int) ($settings['cache_ttl_posts'] ?? SPEEDMATE_DEFAULT_TTL_POSTS);
             case 'page':
-                return (int) ($settings['cache_ttl_pages'] ?? 30 * DAY_IN_SECONDS);
+                return (int) ($settings['cache_ttl_pages'] ?? SPEEDMATE_DEFAULT_TTL_PAGES);
             default:
                 return (int) ($settings['cache_ttl'] ?? 7 * DAY_IN_SECONDS);
         }

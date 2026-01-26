@@ -162,9 +162,9 @@ final class Plugin
                 'logging_enabled' => false,
                 'csp_nonce' => false,
                 'cache_ttl' => 7 * DAY_IN_SECONDS,
-                'cache_ttl_homepage' => 3600,
-                'cache_ttl_posts' => 7 * DAY_IN_SECONDS,
-                'cache_ttl_pages' => 30 * DAY_IN_SECONDS,
+                'cache_ttl_homepage' => SPEEDMATE_DEFAULT_TTL_HOMEPAGE,
+                'cache_ttl_posts' => SPEEDMATE_DEFAULT_TTL_POSTS,
+                'cache_ttl_pages' => SPEEDMATE_DEFAULT_TTL_PAGES,
                 'cache_exclude_urls' => [
                     '/checkout/',
                     '/cart/',
@@ -195,7 +195,7 @@ final class Plugin
                 'lcp_preloads' => 0,
                 'time_saved_ms' => 0,
                 'avg_uncached_ms' => 0,
-                'avg_cached_ms' => 50,
+                'avg_cached_ms' => SPEEDMATE_STATS_DEFAULT_CACHED_MS,
                 'week_key' => '',
             ], '', false);
         }

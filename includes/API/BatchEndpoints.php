@@ -37,8 +37,8 @@ final class BatchEndpoints
 {
     use Singleton;
 
-    private const MAX_BATCH_SIZE = 10;
-    private const MIN_MEMORY_MB = 32;
+    private const MAX_BATCH_SIZE = SPEEDMATE_MAX_BATCH_SIZE;
+    private const MIN_MEMORY_MB = SPEEDMATE_MIN_MEMORY_MB;
 
     /**
      * Private constructor for Singleton pattern.

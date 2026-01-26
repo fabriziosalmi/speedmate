@@ -242,7 +242,7 @@ final class Stats
             $new_value = $ms;
         } else {
             // Rolling average: (old * 9 + new) / 10
-            $new_value = (int) round(((int) $current * 9 + $ms) / 10);
+            $new_value = (int) round(((int) $current * SPEEDMATE_STATS_ROLLING_WEIGHT + $ms) / SPEEDMATE_STATS_ROLLING_DIVISOR);
         }
 
         $wpdb->query(
@@ -273,9 +273,9 @@ final class Stats
                     VALUES (%s, %d, %s)
                     ON DUPLICATE KEY UPDATE metric_value = %d",
                     'avg_cached_ms',
-                    50,
+                    SPEEDMATE_STATS_DEFAULT_CACHED_MS,
                     $week_key,
-                    50
+                    SPEEDMATE_STATS_DEFAULT_CACHED_MS
                 )
             );
         }
@@ -323,7 +323,7 @@ final class Stats
         );
 
         $uncached = 0;
-        $cached = 50;
+        $cached = SPEEDMATE_STATS_DEFAULT_CACHED_MS;
 
         if (is_array($results)) {
             foreach ($results as $row) {
@@ -377,7 +377,7 @@ final class Stats
             'lcp_preloads' => 0,
             'time_saved_ms' => 0,
             'avg_uncached_ms' => 0,
-            'avg_cached_ms' => 50,
+            'avg_cached_ms' => SPEEDMATE_STATS_DEFAULT_CACHED_MS,
             'week_key' => '',
         ];
     }

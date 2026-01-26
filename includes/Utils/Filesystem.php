@@ -97,7 +97,7 @@ final class Filesystem
 
         $dir = dirname($path);
         if (!$wp_filesystem->is_dir($dir)) {
-            $wp_filesystem->mkdir($dir, 0755, true);
+            $wp_filesystem->mkdir($dir, SPEEDMATE_DIR_PERMISSIONS, true);
         }
 
         return (bool) $wp_filesystem->put_contents($path, $contents, FS_CHMOD_FILE);

@@ -145,7 +145,7 @@ final class ImportExport
         }
 
         // Security: Validate file size (max 1MB)
-        if (isset($file['size']) && $file['size'] > 1048576) {
+        if (isset($file['size']) && $file['size'] > SPEEDMATE_MAX_IMPORT_SIZE) {
             wp_redirect(admin_url('admin.php?page=speedmate&import_error=file_too_large'));
             exit;
         }

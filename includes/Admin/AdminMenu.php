@@ -27,7 +27,7 @@ final class AdminMenu
             'speedmate',
             $render_callback,
             'dashicons-dashboard',
-            58
+            SPEEDMATE_MENU_POSITION
         );
     }
 

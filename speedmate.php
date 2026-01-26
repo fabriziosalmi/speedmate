@@ -31,6 +31,9 @@ if (file_exists($autoload_path)) {
     require_once $autoload_path;
 }
 
+// Load constants
+require_once SPEEDMATE_PATH . 'includes/constants.php';
+
 require_once SPEEDMATE_PATH . 'includes/Plugin.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/Filesystem.php';
 require_once SPEEDMATE_PATH . 'includes/Utils/Stats.php';
