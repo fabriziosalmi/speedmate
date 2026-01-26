@@ -7,31 +7,17 @@ namespace SpeedMate\Cache;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Container;
+use SpeedMate\Utils\Singleton;
 
 final class TrafficWarmer
 {
+    use Singleton;
+
     private const TRANSIENT_KEY = 'speedmate_hits';
     private const CRON_HOOK = 'speedmate_warm_cron';
 
-    private static ?TrafficWarmer $instance = null;
-
     private function __construct()
     {
-    }
-
-    public static function instance(): TrafficWarmer
-    {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

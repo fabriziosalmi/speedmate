@@ -7,23 +7,14 @@ namespace SpeedMate\API;
 use SpeedMate\Cache\StaticCache;
 use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Singleton;
 
 final class BatchEndpoints
 {
-    private static ?BatchEndpoints $instance = null;
+    use Singleton;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): BatchEndpoints
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

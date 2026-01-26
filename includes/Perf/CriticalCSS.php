@@ -5,23 +5,14 @@ declare(strict_types=1);
 namespace SpeedMate\Perf;
 
 use SpeedMate\Utils\Settings;
+use SpeedMate\Utils\Singleton;
 
 final class CriticalCSS
 {
-    private static ?CriticalCSS $instance = null;
+    use Singleton;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): CriticalCSS
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

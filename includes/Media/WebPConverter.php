@@ -6,23 +6,14 @@ namespace SpeedMate\Media;
 
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Singleton;
 
 final class WebPConverter
 {
-    private static ?WebPConverter $instance = null;
+    use Singleton;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): WebPConverter
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

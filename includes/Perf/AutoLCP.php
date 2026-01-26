@@ -10,30 +10,16 @@ use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\CspNonce;
 use SpeedMate\Utils\Container;
+use SpeedMate\Utils\Singleton;
 
 final class AutoLCP
 {
-    private const META_KEY = '_speedmate_lcp_image';
+    use Singleton;
 
-    private static ?AutoLCP $instance = null;
+    private const META_KEY = '_speedmate_lcp_image';
 
     private function __construct()
     {
-    }
-
-    public static function instance(): AutoLCP
-    {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

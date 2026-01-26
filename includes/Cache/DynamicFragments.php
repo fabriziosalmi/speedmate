@@ -9,30 +9,17 @@ use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Container;
 use SpeedMate\Utils\CspNonce;
+use SpeedMate\Utils\Singleton;
 
 final class DynamicFragments
 {
-    private static ?DynamicFragments $instance = null;
+    use Singleton;
+
     private static array $fragments = [];
     private static int $counter = 0;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): DynamicFragments
-    {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

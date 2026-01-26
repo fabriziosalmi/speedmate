@@ -8,32 +8,16 @@ use SpeedMate\Utils\Filesystem;
 use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Logger;
+use SpeedMate\Utils\Singleton;
 
 final class StaticCache
 {
-    private static ?StaticCache $instance = null;
+    use Singleton;
+
     private float $request_start = 0.0;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): StaticCache
-    {
-        // For test injection - only available when Container is loaded
-        if (class_exists('\SpeedMate\Utils\Container')) {
-            $override = \SpeedMate\Utils\Container::get(self::class);
-            if ($override instanceof self) {
-                return $override;
-            }
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

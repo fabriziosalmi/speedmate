@@ -7,28 +7,14 @@ namespace SpeedMate\Admin;
 use SpeedMate\Cache\StaticCache;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Container;
+use SpeedMate\Utils\Singleton;
 
 final class Admin
 {
-    private static ?Admin $instance = null;
+    use Singleton;
 
     private function __construct()
     {
-    }
-
-    public static function instance(): Admin
-    {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void

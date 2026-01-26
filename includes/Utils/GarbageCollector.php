@@ -6,30 +6,16 @@ namespace SpeedMate\Utils;
 
 use SpeedMate\Utils\Logger;
 use SpeedMate\Utils\Container;
+use SpeedMate\Utils\Singleton;
 
 final class GarbageCollector
 {
-    private const CRON_HOOK = 'speedmate_garbage_collect';
+    use Singleton;
 
-    private static ?GarbageCollector $instance = null;
+    private const CRON_HOOK = 'speedmate_garbage_collect';
 
     private function __construct()
     {
-    }
-
-    public static function instance(): GarbageCollector
-    {
-        $override = Container::get(self::class);
-        if ($override instanceof self) {
-            return $override;
-        }
-
-        if (self::$instance === null) {
-            self::$instance = new self();
-            self::$instance->register_hooks();
-        }
-
-        return self::$instance;
     }
 
     private function register_hooks(): void
