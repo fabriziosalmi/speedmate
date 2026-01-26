@@ -2,6 +2,57 @@
 
 All notable changes to SpeedMate will be documented in this file.
 
+## [0.4.1] - 2026-01-26
+
+### Code Quality Improvements
+
+#### Documentation
+- **Complete PHPDoc Coverage**: Added comprehensive PHPDoc documentation to all 35 classes
+  - Package tags, since tags, detailed method descriptions
+  - Parameter types, return types, and full context
+  - 8 commits with ~2000+ lines of documentation
+  - Closes #13
+
+#### Code Organization
+- **Constants Extraction**: Created centralized `includes/constants.php` with 20+ constants
+  - Menu positions, directory permissions, rate limits
+  - Cache TTL defaults (homepage, posts, pages)
+  - Import size limits, batch API limits
+  - Stats rolling average formula constants
+  - Updated 11 files to use constants
+  
+- **Formatter Utility**: Created `Utils/Formatter.php` to eliminate code duplication
+  - `format_bytes()`: Human-readable byte formatting (B, KB, MB, GB, TB)
+  - `format_duration()`: Milliseconds to human-readable time
+  - Refactored AdminRenderer to use centralized formatting
+
+#### Error Logging
+- **Comprehensive Logging Coverage**: Added error logging across 10+ classes
+  - **Filesystem**: Init failures, permission issues with path context
+  - **StaticCache**: Buffer warnings, write failures, purge operations
+  - **TrafficWarmer**: Retry exhaustion, warming requests with URLs, failure monitoring
+  - **MediaOptimizer**: DOM parsing failures, attachment resolution issues
+  - **DynamicFragments**: Rate limit hits, fragment fetch failures
+  - **HealthWidget**: Health check failures (cache dir, .htaccess rules)
+  - **ImportExport**: Security event logging (exports, imports, validation failures)
+  - 25+ new log points with contextual data for debugging
+
+#### Testing
+- **Integration Tests** (42 new tests):
+  - **MultisiteTest**: 7 tests for cache isolation, network settings inheritance, transient isolation
+  - **DynamicFragmentsTest**: 16 tests for fragment caching, TTL handling, nested shortcodes, mode-specific behavior
+  - **MediaOptimizerTest**: 20 tests for lazy loading, dimension injection, CLS prevention, performance
+
+- **Edge Case Tests** (32 new tests):
+  - **StatsEdgeCaseTest**: 14 tests for rolling average calculations, boundary conditions, smoothing effects
+  - **CacheTTLEdgeCaseTest**: 18 tests for TTL hierarchy, default values, settings fallback
+
+### Technical Improvements
+- Total test coverage: 74 new tests across 5 test files
+- Code maintainability: Magic numbers eliminated, centralized formatting
+- Error visibility: Comprehensive logging for production debugging
+- Documentation: 100% PHPDoc coverage for all classes
+
 ## [0.3.3] - 2026-01-26
 
 ### Security Hardening (P0 - Critical)
