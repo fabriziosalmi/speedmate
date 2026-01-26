@@ -92,6 +92,7 @@ final class Filesystem
         global $wp_filesystem;
 
         if (!self::init()) {
+            Logger::log('error', 'filesystem_put_contents_init_failed', ['path' => $path]);
             return false;
         }
 
@@ -126,6 +127,7 @@ final class Filesystem
         global $wp_filesystem;
 
         if (!self::init()) {
+            Logger::log('error', 'filesystem_get_contents_init_failed', ['path' => $path]);
             return '';
         }
 
@@ -157,6 +159,7 @@ final class Filesystem
         global $wp_filesystem;
 
         if (!self::init()) {
+            Logger::log('error', 'filesystem_exists_init_failed', ['path' => $path]);
             return false;
         }
 
@@ -187,6 +190,7 @@ final class Filesystem
         global $wp_filesystem;
 
         if (!self::init()) {
+            Logger::log('error', 'filesystem_delete_init_failed', ['path' => $path, 'recursive' => $recursive]);
             return false;
         }
 
