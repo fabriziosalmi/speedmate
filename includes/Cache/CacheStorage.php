@@ -29,20 +29,33 @@ final class CacheStorage
             return false;
         }
 
-        if (!Filesystem::put_contents($path, $contents)) {
-            Logger::log('warning', 'cache_write_failed', ['path' => $path]);
+        try {
+            if (!Filesystem::put_contents($path, $contents)) {
+                Logger::log('warning', 'cache_write_failed', ['path' => $path]);
+                return false;
+            }
+
+            // Write metadata file with TTL
+            $meta = [
+                'created' => time(),
+                'ttl' => $ttl,
+            ];
+            $meta_path = $path . '.meta';
+            
+            if (!Filesystem::put_contents($meta_path, wp_json_encode($meta))) {
+                Logger::log('warning', 'cache_meta_write_failed', ['path' => $meta_path]);
+                // Don't return false - main cache file was written successfully
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Logger::log('error', 'cache_write_exception', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return false;
         }
-
-        // Write metadata file with TTL
-        $meta = [
-            'created' => time(),
-            'ttl' => $ttl,
-        ];
-        $meta_path = $path . '.meta';
-        Filesystem::put_contents($meta_path, wp_json_encode($meta));
-
-        return true;
     }
 
     /**
@@ -175,14 +188,23 @@ final class CacheStorage
 
     /**
      * Ensure cache directory exists.
+     * Creates directory by attempting to write a file then removing it.
      *
      * @return void
      */
     public function ensure_cache_dir(): void
     {
         if (!Filesystem::exists(SPEEDMATE_CACHE_DIR)) {
-            Filesystem::put_contents(trailingslashit(SPEEDMATE_CACHE_DIR) . 'index.html', "");
-            Filesystem::delete(trailingslashit(SPEEDMATE_CACHE_DIR) . 'index.html');
+            try {
+                $index_path = trailingslashit(SPEEDMATE_CACHE_DIR) . 'index.html';
+                Filesystem::put_contents($index_path, "");
+                Filesystem::delete($index_path);
+            } catch (\Exception $e) {
+                Logger::log('error', 'cache_dir_creation_exception', [
+                    'dir' => SPEEDMATE_CACHE_DIR,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 

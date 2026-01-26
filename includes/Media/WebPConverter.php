@@ -90,42 +90,64 @@ final class WebPConverter
 
     private function create_webp(string $source_path): string
     {
-        $info = @getimagesize($source_path);
-        if ($info === false) {
-            return '';
-        }
+        try {
+            $info = @getimagesize($source_path);
+            if ($info === false) {
+                Logger::log('warning', 'webp_getimagesize_failed', ['path' => $source_path]);
+                return '';
+            }
 
-        $image = null;
-        switch ($info['mime']) {
-            case 'image/jpeg':
-                $image = @imagecreatefromjpeg($source_path);
-                break;
-            case 'image/png':
-                $image = @imagecreatefrompng($source_path);
-                if ($image !== false) {
+            $image = null;
+            switch ($info['mime']) {
+                case 'image/jpeg':
+                    $image = @imagecreatefromjpeg($source_path);
+                    if ($image === false) {
+                        Logger::log('warning', 'webp_jpeg_load_failed', ['path' => $source_path]);
+                        return '';
+                    }
+                    break;
+                case 'image/png':
+                    $image = @imagecreatefrompng($source_path);
+                    if ($image === false) {
+                        Logger::log('warning', 'webp_png_load_failed', ['path' => $source_path]);
+                        return '';
+                    }
                     imagepalettetotruecolor($image);
                     imagealphablending($image, true);
                     imagesavealpha($image, true);
-                }
-                break;
-        }
+                    break;
+            }
 
-        if ($image === false || $image === null) {
+            if ($image === null) {
+                Logger::log('warning', 'webp_unsupported_mime', ['mime' => $info['mime']]);
+                return '';
+            }
+
+            $webp_path = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $source_path);
+            if ($webp_path === null || $webp_path === $source_path) {
+                imagedestroy($image);
+                Logger::log('warning', 'webp_path_generation_failed', ['path' => $source_path]);
+                return '';
+            }
+            
+            $quality = 80;
+
+            $result = @imagewebp($image, $webp_path, $quality);
+            imagedestroy($image);
+
+            if (!$result) {
+                Logger::log('warning', 'webp_conversion_failed', ['path' => $source_path]);
+                return '';
+            }
+
+            return $webp_path;
+        } catch (\Exception $e) {
+            Logger::log('error', 'webp_conversion_exception', [
+                'path' => $source_path,
+                'error' => $e->getMessage(),
+            ]);
             return '';
         }
-
-        $webp_path = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $source_path);
-        $quality = 80;
-
-        $result = @imagewebp($image, $webp_path, $quality);
-        imagedestroy($image);
-
-        if (!$result) {
-            Logger::log('warning', 'webp_conversion_failed', ['path' => $source_path]);
-            return '';
-        }
-
-        return $webp_path;
     }
 
     private function webp_supported(): bool

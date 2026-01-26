@@ -89,19 +89,36 @@ final class BeastMode
             return $html;
         }
 
-        $dom = new \DOMDocument('1.0', 'UTF-8');
-        libxml_use_internal_errors(true);
-        $options = 0;
-        if (defined('LIBXML_HTML_NOIMPLIED')) {
-            $options |= LIBXML_HTML_NOIMPLIED;
-        }
-        if (defined('LIBXML_HTML_NODEFDTD')) {
-            $options |= LIBXML_HTML_NODEFDTD;
-        }
-        $loaded = $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, $options);
-        libxml_clear_errors();
-
-        if (!$loaded) {
+        try {
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            libxml_use_internal_errors(true);
+            $options = 0;
+            if (defined('LIBXML_HTML_NOIMPLIED')) {
+                $options |= LIBXML_HTML_NOIMPLIED;
+            }
+            if (defined('LIBXML_HTML_NODEFDTD')) {
+                $options |= LIBXML_HTML_NODEFDTD;
+            }
+            $loaded = $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, $options);
+            
+            if (!$loaded) {
+                $errors = libxml_get_errors();
+                if (!empty($errors)) {
+                    Logger::log('warning', 'beast_mode_dom_parse_failed', [
+                        'errors' => array_map(function($error) {
+                            return sprintf('%s (line %d)', trim($error->message), $error->line);
+                        }, $errors),
+                    ]);
+                }
+                libxml_clear_errors();
+                return $html;
+            }
+            
+            libxml_clear_errors();
+        } catch (\Exception $e) {
+            Logger::log('error', 'beast_mode_dom_exception', [
+                'error' => $e->getMessage(),
+            ]);
             return $html;
         }
 
