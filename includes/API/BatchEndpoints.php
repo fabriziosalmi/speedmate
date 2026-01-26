@@ -13,6 +13,9 @@ final class BatchEndpoints
 {
     use Singleton;
 
+    private const MAX_BATCH_SIZE = 10;
+    private const MIN_MEMORY_MB = 32;
+
     private function __construct()
     {
     }
@@ -79,6 +82,11 @@ final class BatchEndpoints
             return false;
         }
 
+        // Enforce batch size limit to prevent DoS
+        if (count($requests) > self::MAX_BATCH_SIZE) {
+            return false;
+        }
+
         foreach ($requests as $request) {
             if (!isset($request['method'], $request['path'])) {
                 return false;
@@ -91,6 +99,21 @@ final class BatchEndpoints
     public function handle_batch(\WP_REST_Request $request): \WP_REST_Response
     {
         $requests = $request->get_param('requests');
+        
+        // Double-check batch size (should already be validated)
+        if (count($requests) > self::MAX_BATCH_SIZE) {
+            return new \WP_REST_Response([
+                'error' => sprintf('Batch size exceeds limit of %d requests', self::MAX_BATCH_SIZE),
+            ], 400);
+        }
+
+        // Check available memory
+        if (!$this->has_sufficient_memory()) {
+            return new \WP_REST_Response([
+                'error' => 'Insufficient memory available for batch processing',
+            ], 503);
+        }
+
         $responses = [];
 
         foreach ($requests as $single_request) {
@@ -98,6 +121,54 @@ final class BatchEndpoints
         }
 
         return new \WP_REST_Response(['responses' => $responses], 200);
+    }
+
+    /**
+     * Check if sufficient memory is available for batch processing.
+     *
+     * @return bool True if at least 32MB of memory is available.
+     */
+    private function has_sufficient_memory(): bool
+    {
+        $memory_limit = ini_get('memory_limit');
+        if ($memory_limit === '-1') {
+            // Unlimited memory
+            return true;
+        }
+
+        // Convert to bytes
+        $limit_bytes = $this->convert_to_bytes($memory_limit);
+        $used_bytes = memory_get_usage(true);
+        $available_bytes = $limit_bytes - $used_bytes;
+
+        // Require at least 32MB available
+        return $available_bytes >= (self::MIN_MEMORY_MB * 1024 * 1024);
+    }
+
+    /**
+     * Convert PHP ini memory value to bytes.
+     *
+     * @param string $value Memory value (e.g., '128M', '1G').
+     * @return int Bytes.
+     */
+    private function convert_to_bytes(string $value): int
+    {
+        $value = trim($value);
+        $last = strtolower($value[strlen($value) - 1] ?? '');
+        $num = (int) $value;
+
+        switch ($last) {
+            case 'g':
+                $num *= 1024;
+                // Fall through
+            case 'm':
+                $num *= 1024;
+                // Fall through
+            case 'k':
+                $num *= 1024;
+        }
+
+        return $num;
     }
 
     private function execute_single_request(array $request): array

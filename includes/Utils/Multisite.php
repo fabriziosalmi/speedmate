@@ -80,7 +80,10 @@ final class Multisite
     }
 
     /**
-     * Flush cache for all sites in network
+     * Flush cache for all sites in network.
+     * Uses direct filesystem operations to avoid expensive switch_to_blog() calls.
+     *
+     * @return void
      */
     public static function flush_network_cache(): void
     {
@@ -89,10 +92,45 @@ final class Multisite
         }
 
         $sites = get_sites(['number' => 999]);
+        $flushed_count = 0;
+        
         foreach ($sites as $site) {
-            switch_to_blog((int) $site->blog_id);
-            \SpeedMate\Cache\StaticCache::instance()->flush_all();
-            restore_current_blog();
+            $site_cache_dir = trailingslashit(SPEEDMATE_CACHE_DIR) . 'site-' . $site->blog_id;
+            
+            // Direct filesystem flush without context switching
+            if (file_exists($site_cache_dir)) {
+                \SpeedMate\Utils\Filesystem::delete_directory($site_cache_dir);
+                $flushed_count++;
+            }
+        }
+        
+        // Clear transients for all sites in one pass
+        if ($flushed_count > 0) {
+            self::clear_site_transients($sites);
+        }
+    }
+
+    /**
+     * Clear site-specific transients without context switching.
+     *
+     * @param array $sites Array of site objects.
+     * @return void
+     */
+    private static function clear_site_transients(array $sites): void
+    {
+        global $wpdb;
+        
+        foreach ($sites as $site) {
+            $prefix = $wpdb->get_blog_prefix($site->blog_id);
+            
+            // Delete stats transients for this site
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$prefix}options WHERE option_name IN (%s, %s)",
+                    '_transient_speedmate_cache_size',
+                    '_transient_speedmate_cache_count'
+                )
+            );
         }
     }
 }

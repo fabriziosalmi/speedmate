@@ -7,6 +7,9 @@ namespace SpeedMate\Utils;
 final class Stats
 {
     private const TABLE_NAME = 'speedmate_stats';
+    
+    /** @var bool|null Cache for table existence check within request */
+    private static $table_exists = null;
 
     public static function create_table(): void
     {
@@ -29,6 +32,30 @@ final class Stats
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
+        
+        // Mark as existing after creation
+        self::$table_exists = true;
+    }
+
+    /**
+     * Check if stats table exists with static caching.
+     * Cached within request to avoid repeated DB queries.
+     *
+     * @return bool True if table exists.
+     */
+    private static function table_exists(): bool
+    {
+        if (self::$table_exists !== null) {
+            return self::$table_exists;
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . self::TABLE_NAME;
+        $escaped_table = $wpdb->esc_like($table_name);
+        
+        self::$table_exists = ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $escaped_table)) === $table_name);
+        
+        return self::$table_exists;
     }
 
     public static function get(): array
@@ -38,9 +65,8 @@ final class Stats
         $table_name = $wpdb->prefix . self::TABLE_NAME;
         $week_key = gmdate('oW');
 
-        // Check if table exists
-        $escaped_table = $wpdb->esc_like($table_name);
-        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $escaped_table)) !== $table_name) {
+        // Use cached table existence check
+        if (!self::table_exists()) {
             return self::get_defaults();
         }
 
@@ -73,8 +99,8 @@ final class Stats
         $table_name = $wpdb->prefix . self::TABLE_NAME;
         $week_key = gmdate('oW');
 
-        // Check if table exists, create if not
-        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+        // Use cached table existence check, create if needed
+        if (!self::table_exists()) {
             self::create_table();
         }
 

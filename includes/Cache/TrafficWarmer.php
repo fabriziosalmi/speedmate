@@ -56,16 +56,73 @@ final class TrafficWarmer
             return;
         }
 
-        $hits = get_transient(self::TRANSIENT_KEY);
-        if (!is_array($hits)) {
-            $hits = [];
+        // Attempt atomic increment with simple locking
+        $max_attempts = 3;
+        $attempt = 0;
+        
+        while ($attempt < $max_attempts) {
+            // Try to acquire lock with timeout
+            if ($this->acquire_hit_lock()) {
+                $hits = get_transient(self::TRANSIENT_KEY);
+                if (!is_array($hits)) {
+                    $hits = [];
+                }
+
+                $hits[$url] = isset($hits[$url]) ? ((int) $hits[$url] + 1) : 1;
+
+                set_transient(self::TRANSIENT_KEY, $hits, HOUR_IN_SECONDS * 2);
+                
+                $this->release_hit_lock();
+                break;
+            }
+            
+            // Wait briefly and retry
+            $attempt++;
+            if ($attempt < $max_attempts) {
+                usleep(10000); // 10ms
+            }
         }
 
-        $hits[$url] = isset($hits[$url]) ? ((int) $hits[$url] + 1) : 1;
-
-        set_transient(self::TRANSIENT_KEY, $hits, HOUR_IN_SECONDS * 2);
-
         \SpeedMate\Utils\Stats::add_time_saved_from_hit();
+    }
+
+    /**
+     * Acquire lock for hit tracking with timeout.
+     * Uses options API for better atomicity than transients.
+     *
+     * @return bool True if lock acquired.
+     */
+    private function acquire_hit_lock(): bool
+    {
+        $lock_key = 'speedmate_hit_lock';
+        $lock_timeout = 2; // seconds
+        
+        // Try to add lock (fails if already exists)
+        $acquired = add_option($lock_key, time(), '', false);
+        
+        if ($acquired) {
+            return true;
+        }
+        
+        // Check if existing lock is expired
+        $lock_time = get_option($lock_key);
+        if (is_numeric($lock_time) && (time() - (int) $lock_time) > $lock_timeout) {
+            // Expired lock, update it
+            update_option($lock_key, time(), false);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Release hit tracking lock.
+     *
+     * @return void
+     */
+    private function release_hit_lock(): void
+    {
+        delete_option('speedmate_hit_lock');
     }
 
     public function run(): void

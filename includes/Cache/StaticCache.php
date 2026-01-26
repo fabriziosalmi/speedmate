@@ -166,6 +166,10 @@ final class StaticCache
     public function flush_all(): void
     {
         $this->storage->flush_all();
+        
+        // Invalidate cached stats transients
+        delete_transient('speedmate_cache_size');
+        delete_transient('speedmate_cache_count');
     }
 
     public function get_nginx_rules(): string
@@ -173,14 +177,46 @@ final class StaticCache
         return $this->rules->get_nginx_rules();
     }
 
+    /**
+     * Get cache size in bytes with transient caching.
+     * Cached for 5 minutes to reduce filesystem I/O on admin pages.
+     *
+     * @return int Cache size in bytes.
+     */
     public function get_cache_size_bytes(): int
     {
-        return $this->storage->get_size();
+        $transient_key = 'speedmate_cache_size';
+        $cached = get_transient($transient_key);
+
+        if ($cached !== false && is_numeric($cached)) {
+            return (int) $cached;
+        }
+
+        $size = $this->storage->get_size();
+        set_transient($transient_key, $size, 5 * MINUTE_IN_SECONDS);
+
+        return $size;
     }
 
+    /**
+     * Get cached pages count with transient caching.
+     * Cached for 5 minutes to reduce filesystem I/O on admin pages.
+     *
+     * @return int Number of cached pages.
+     */
     public function get_cached_pages_count(): int
     {
-        return $this->storage->count_pages();
+        $transient_key = 'speedmate_cache_count';
+        $cached = get_transient($transient_key);
+
+        if ($cached !== false && is_numeric($cached)) {
+            return (int) $cached;
+        }
+
+        $count = $this->storage->count_pages();
+        set_transient($transient_key, $count, 5 * MINUTE_IN_SECONDS);
+
+        return $count;
     }
 
     public function has_cache_for_url(string $url): bool

@@ -86,14 +86,54 @@ final class GarbageCollector
         }
     }
 
+    /**
+     * Delete spam comments in batches to avoid N+1 queries.
+     * Uses direct SQL for bulk deletion with proper cleanup.
+     *
+     * @return void
+     */
     private function delete_spam_comments(): void
     {
         global $wpdb;
-        $spam_ids = $wpdb->get_col("SELECT comment_ID FROM {$wpdb->comments} WHERE comment_approved = 'spam'");
-        if (is_array($spam_ids)) {
-            foreach ($spam_ids as $comment_id) {
-                wp_delete_comment((int) $comment_id, true);
-            }
+        
+        // Get spam comments with post IDs (need for comment count update)
+        $spam_comments = $wpdb->get_results(
+            "SELECT comment_ID, comment_post_ID FROM {$wpdb->comments} WHERE comment_approved = 'spam' LIMIT 1000"
+        );
+        
+        if (!is_array($spam_comments) || empty($spam_comments)) {
+            return;
+        }
+
+        $spam_ids = array_column($spam_comments, 'comment_ID');
+        $post_ids = array_unique(array_column($spam_comments, 'comment_post_ID'));
+        
+        $ids_placeholder = implode(',', array_fill(0, count($spam_ids), '%d'));
+        
+        // Delete comment meta in bulk
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->commentmeta} WHERE comment_id IN ($ids_placeholder)",
+                ...$spam_ids
+            )
+        );
+        
+        // Delete comments in bulk
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->comments} WHERE comment_ID IN ($ids_placeholder)",
+                ...$spam_ids
+            )
+        );
+        
+        // Clean comment cache for deleted IDs
+        foreach ($spam_ids as $comment_id) {
+            clean_comment_cache($comment_id);
+        }
+        
+        // Update comment count caches for affected posts
+        foreach ($post_ids as $post_id) {
+            wp_update_comment_count($post_id);
         }
     }
 
