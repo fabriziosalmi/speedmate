@@ -33,10 +33,11 @@ WordPress performance plugin with static HTML caching, media optimization, and J
 - **Admin Bar Metrics**: Quick performance stats in WordPress admin bar
 
 ## Technical Requirements
-- WordPress 5.8 or higher
-- PHP 7.4 or higher
-- Apache with mod_rewrite OR Nginx with manual configuration
-- Write permissions for `.htaccess` (Apache only)
+- **Operating System**: Linux (Ubuntu, Debian, CentOS, Rocky Linux), macOS, or Windows with WSL
+- **WordPress**: 6.0 or higher (6.4+ recommended)
+- **PHP**: 7.4 or higher (8.1+ recommended)
+- **Web Server**: Apache with mod_rewrite OR Nginx
+- **Permissions**: Write access to `wp-content/` and `.htaccess` (Apache)
 
 ## Installation
 

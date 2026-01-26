@@ -130,7 +130,9 @@ curl -X POST https://site.com/wp-json/speedmate/v1/batch/warm \
 
 ## Requirements
 
-- PHP 7.4 or higher
+- **Operating System**: Linux, macOS, or Windows (WSL)
+- **PHP**: 7.4 or higher (8.1+ recommended)
+- **WordPress**: 6.0 or higher (6.4+ recommended)
 - WordPress 6.0 or higher
 - Write permissions to `wp-content/cache/speedmate/`
 

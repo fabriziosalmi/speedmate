@@ -6,6 +6,7 @@ Complete installation guide for SpeedMate.
 
 ### Minimum Requirements
 
+- **Operating System**: Linux (Ubuntu, Debian, CentOS, Rocky Linux), macOS, or Windows with WSL
 - **PHP**: 7.4 or higher (8.1+ recommended)
 - **WordPress**: 6.0 or higher (6.4+ recommended)
 - **Disk Space**: 100MB free in `wp-content/cache/`
