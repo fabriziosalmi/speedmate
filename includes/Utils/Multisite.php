@@ -176,7 +176,7 @@ final class Multisite
             
             // Direct filesystem flush without context switching
             if (file_exists($site_cache_dir)) {
-                \SpeedMate\Utils\Filesystem::delete_directory($site_cache_dir);
+                \SpeedMate\Utils\Filesystem::delete($site_cache_dir, true);
                 $flushed_count++;
             }
         }
