@@ -9,19 +9,66 @@ use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * WordPress dashboard health check widget.
+ *
+ * Displays SpeedMate system status at a glance in the WordPress admin dashboard.
+ *
+ * Checks:
+ * - Cache directory existence and writability
+ * - .htaccess rules presence
+ * - Cache hit rate performance
+ * - Current operating mode
+ *
+ * Features:
+ * - Overall health status (good/warning/error)
+ * - Individual check results with icons
+ * - Quick stats (cached pages, size, time saved)
+ * - Color-coded status indicators
+ * - Automatic dashboard registration
+ *
+ * Status levels:
+ * - Good: All checks passing
+ * - Warning: Non-critical issues detected
+ * - Error: Critical problems requiring attention
+ *
+ * @package SpeedMate\Admin
+ * @since 0.2.0
+ */
 final class HealthWidget
 {
     use Singleton;
 
+    /**
+     * Private constructor to enforce Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks for dashboard widget.
+     *
+     * Hooks:
+     * - wp_dashboard_setup: Register widget in dashboard
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_action('wp_dashboard_setup', [$this, 'register_widget']);
     }
 
+    /**
+     * Register health check widget in WordPress dashboard.
+     *
+     * Widget:
+     * - ID: speedmate_health
+     * - Title: ⚡ SpeedMate Health Check
+     * - Appears in dashboard for users with manage_options capability
+     *
+     * @return void
+     */
     public function register_widget(): void
     {
         wp_add_dashboard_widget(
@@ -31,6 +78,19 @@ final class HealthWidget
         );
     }
 
+    /**
+     * Render health check widget content.
+     *
+     * Displays:
+     * - Overall status banner (good/warning/error)
+     * - Individual health checks with icons
+     * - Quick stats (cached pages, size, time saved)
+     * - Inline CSS for styling
+     *
+     * Output is HTML with escaped content for XSS protection.
+     *
+     * @return void
+     */
     public function render(): void
     {
         $checks = [
@@ -85,6 +145,15 @@ final class HealthWidget
         echo '</div>';
     }
 
+    /**
+     * Check cache directory status.
+     *
+     * Verifies:
+     * - Directory exists
+     * - Directory is writable
+     *
+     * @return array{status: string, message: string} Status array.
+     */
     private function check_cache_dir(): array
     {
         $writable = is_writable(SPEEDMATE_CACHE_DIR);
@@ -94,6 +163,15 @@ final class HealthWidget
         ];
     }
 
+    /**
+     * Check .htaccess rules status.
+     *
+     * Verifies:
+     * - .htaccess file exists
+     * - SpeedMate rules are present (BEGIN/END markers)
+     *
+     * @return array{status: string, message: string} Status array.
+     */
     private function check_htaccess(): array
     {
         if (!function_exists('get_home_path')) {
@@ -114,6 +192,16 @@ final class HealthWidget
         ];
     }
 
+    /**
+     * Check cache hit rate performance.
+     *
+     * Evaluates:
+     * - Good: Hit rate >= 80%
+     * - Warning: Hit rate < 80%
+     * - Error: No data available
+     *
+     * @return array{status: string, message: string} Status array.
+     */
     private function check_hit_rate(): array
     {
         $cached_count = StaticCache::instance()->get_cached_pages_count();
@@ -125,6 +213,15 @@ final class HealthWidget
         return ['status' => 'good', 'message' => 'Cache is active with ' . $cached_count . ' pages'];
     }
 
+    /**
+     * Check current operating mode.
+     *
+     * Statuses:
+     * - Good: Safe or Beast mode enabled
+     * - Warning: Mode is disabled
+     *
+     * @return array{status: string, message: string} Status array.
+     */
     private function check_mode(): array
     {
         $settings = Settings::get();
@@ -137,6 +234,18 @@ final class HealthWidget
         return ['status' => 'good', 'message' => 'Mode: ' . ucfirst($mode)];
     }
 
+    /**
+     * Calculate overall health status from individual checks.
+     *
+     * Logic:
+     * - Error: Any check has error status
+     * - Warning: Any check has warning status (and no errors)
+     * - Good: All checks passing
+     *
+     * @param array<string, array{status: string, message: string}> $checks Individual check results.
+     *
+     * @return string Overall status ('good', 'warning', or 'error').
+     */
     private function get_overall_status(array $checks): string
     {
         foreach ($checks as $check) {
@@ -154,6 +263,18 @@ final class HealthWidget
         return 'good';
     }
 
+    /**
+     * Get Dashicon name for status.
+     *
+     * Icons:
+     * - Good: yes-alt (checkmark)
+     * - Warning: warning (exclamation)
+     * - Error: dismiss (X)
+     *
+     * @param string $status Status level.
+     *
+     * @return string Dashicon name (without 'dashicons-' prefix).
+     */
     private function get_icon(string $status): string
     {
         $icons = [
@@ -165,6 +286,13 @@ final class HealthWidget
         return $icons[$status] ?? 'info';
     }
 
+    /**
+     * Get human-readable status text.
+     *
+     * @param string $status Status level.
+     *
+     * @return string Status text for display.
+     */
     private function get_status_text(string $status): string
     {
         $texts = [

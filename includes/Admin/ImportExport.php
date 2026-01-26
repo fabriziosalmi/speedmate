@@ -7,20 +7,73 @@ namespace SpeedMate\Admin;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * Configuration import/export functionality.
+ *
+ * Allows exporting and importing SpeedMate settings as JSON files for:
+ * - Backup and restore
+ * - Configuration migration between sites
+ * - Bulk configuration updates
+ * - Disaster recovery
+ *
+ * Features:
+ * - JSON export with pretty printing
+ * - Comprehensive import validation
+ * - Security checks (MIME type, file size, structure)
+ * - Whitelist of allowed settings keys
+ * - Type and value validation
+ * - Nonce and capability verification
+ *
+ * Security:
+ * - max 1MB file size
+ * - JSON MIME type validation
+ * - Structure and key whitelisting
+ * - XSS prevention on import
+ * - Capability check (manage_options)
+ *
+ * @package SpeedMate\Admin
+ * @since 0.2.0
+ */
 final class ImportExport
 {
     use Singleton;
 
+    /**
+     * Private constructor to enforce Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks for import/export.
+     *
+     * Hooks:
+     * - admin_post_speedmate_export: Handle export action
+     * - admin_post_speedmate_import: Handle import action
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_action('admin_post_speedmate_export', [$this, 'handle_export']);
         add_action('admin_post_speedmate_import', [$this, 'handle_import']);
     }
 
+    /**
+     * Handle configuration export request.
+     *
+     * Process:
+     * 1. Verify capability (manage_options)
+     * 2. Check nonce
+     * 3. Export settings as JSON
+     * 4. Send as downloadable file
+     *
+     * File format: speedmate-config-YYYY-MM-DD.json
+     * Content-Type: application/json
+     *
+     * @return void Exits after sending file.
+     */
     public function handle_export(): void
     {
         if (!current_user_can('manage_options')) {
@@ -37,6 +90,23 @@ final class ImportExport
         exit;
     }
 
+    /**
+     * Handle configuration import request.
+     *
+     * Security checks:
+     * 1. Capability verification (manage_options)
+     * 2. Nonce validation
+     * 3. File upload validation
+     * 4. Extension check (must be .json)
+     * 5. MIME type validation (application/json or text/plain)
+     * 6. File size limit (max 1MB)
+     * 7. JSON structure validation
+     * 8. Settings key whitelisting
+     *
+     * Redirects to admin page with error/success parameter.
+     *
+     * @return void Exits after redirect.
+     */
     public function handle_import(): void
     {
         if (!current_user_can('manage_options')) {
@@ -101,6 +171,16 @@ final class ImportExport
         exit;
     }
 
+    /**
+     * Export current settings as array.
+     *
+     * Exports:
+     * - All SpeedMate settings from Settings::get()
+     * - Plugin version
+     * - Export timestamp
+     *
+     * @return array Export data with version and settings.
+     */
     public function export(): array
     {
         return [
@@ -111,6 +191,18 @@ final class ImportExport
         ];
     }
 
+    /**
+     * Import settings from validated data.
+     *
+     * Process:
+     * 1. Validate import data structure
+     * 2. Extract settings
+     * 3. Update WordPress options
+     *
+     * @param array $data Import data with 'settings' key.
+     *
+     * @return bool True if import successful, false otherwise.
+     */
     public function import(array $data): bool
     {
         if (!$this->validate_import($data)) {
@@ -123,6 +215,29 @@ final class ImportExport
         return true;
     }
 
+    /**
+     * Validate import data structure and values.
+     *
+     * Validates:
+     * - Required keys: version, settings
+     * - Settings is array
+     * - Whitelisted keys only (21 allowed settings)
+     * - Type validation (boolean, array, numeric)
+     * - Value range validation
+     *
+     * Allowed settings:
+     * - mode, cache_ttl, excluded_urls, excluded_cookies
+     * - beast_whitelist, beast_blacklist, beast_apply_all
+     * - webp_enabled, critical_css_enabled, preload_hints_enabled
+     * - warmer_enabled, warmer_frequency, warmer_max_urls
+     * - gc_enabled, gc_spam, gc_revisions, gc_transients
+     * - gc_frequency, orphan_meta
+     * - auto_lcp_enabled, auto_lcp_threshold
+     *
+     * @param array $data Import data to validate.
+     *
+     * @return bool True if valid, false otherwise.
+     */
     private function validate_import(array $data): bool
     {
         if (!isset($data['version'], $data['settings'], $data['timestamp'])) {
@@ -234,6 +349,20 @@ final class ImportExport
         return true;
     }
 
+    /**
+     * Render import/export admin UI.
+     *
+     * Displays:
+     * - Export button (download JSON config)
+     * - Import form (upload JSON file)
+     * - Security warnings
+     * - Success/error messages
+     *
+     * Nonce: speedmate_import_nonce
+     * Action: admin_post_speedmate_import
+     *
+     * @return void
+     */
     public function render_ui(): void
     {
         ?>
