@@ -2,6 +2,15 @@
 
 All notable changes to SpeedMate will be documented in this file.
 
+## [0.4.2] - 2026-01-26
+
+### Security
+- **esbuild CORS Vulnerability Fix** (GHSA-67mh-4wv8-2f99)
+  - Fixed medium severity vulnerability in esbuild <= 0.24.2
+  - Added npm overrides to force esbuild ^0.25.0
+  - Vulnerability allowed malicious websites to read dev server responses
+  - Closes Dependabot alert #1
+
 ## [0.4.1] - 2026-01-26
 
 ### Code Quality Improvements
