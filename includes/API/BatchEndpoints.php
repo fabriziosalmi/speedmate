@@ -9,6 +9,30 @@ use SpeedMate\Utils\Stats;
 use SpeedMate\Utils\Settings;
 use SpeedMate\Utils\Singleton;
 
+/**
+ * REST API batch endpoints for SpeedMate operations.
+ *
+ * Features:
+ * - Batch processing (max 10 requests per batch)
+ * - Cache management (flush, warm)
+ * - Statistics retrieval
+ * - DoS protection (MAX_BATCH_SIZE, MIN_MEMORY_MB)
+ * - Capability-based authorization
+ *
+ * Endpoints:
+ * - POST /speedmate/v1/batch - Execute multiple operations
+ * - POST /speedmate/v1/cache/{flush|warm} - Cache actions
+ * - GET /speedmate/v1/stats - Retrieve statistics
+ *
+ * Security:
+ * - Requires manage_options capability for write operations
+ * - Automatic nonce verification via WP REST API
+ * - Memory availability checks
+ * - Request validation
+ *
+ * @package SpeedMate\API
+ * @since 0.4.0
+ */
 final class BatchEndpoints
 {
     use Singleton;
@@ -16,15 +40,46 @@ final class BatchEndpoints
     private const MAX_BATCH_SIZE = 10;
     private const MIN_MEMORY_MB = 32;
 
+    /**
+     * Private constructor for Singleton pattern.
+     */
     private function __construct()
     {
     }
 
+    /**
+     * Register WordPress hooks.
+     *
+     * Hooks:
+     * - rest_api_init: Register REST routes
+     *
+     * @return void
+     */
     private function register_hooks(): void
     {
         add_action('rest_api_init', [$this, 'register_routes']);
     }
 
+    /**
+     * Register REST API routes.
+     *
+     * Routes:
+     * - POST /speedmate/v1/batch
+     *   - Execute multiple operations in batch
+     *   - Requires: requests array
+     *   - Max batch size: 10
+     *
+     * - POST /speedmate/v1/cache/{flush|warm}
+     *   - Cache management actions
+     *   - flush: Clear cache
+     *   - warm: Warm cache
+     *
+     * - GET /speedmate/v1/stats
+     *   - Retrieve cache statistics
+     *   - Read-only endpoint
+     *
+     * @return void
+     */
     public function register_routes(): void
     {
         register_rest_route('speedmate/v1', '/batch', [
@@ -53,6 +108,18 @@ final class BatchEndpoints
         ]);
     }
 
+    /**
+     * Check if user has permission for write operations.
+     *
+     * Security:
+     * - Requires manage_options capability
+     * - Automatic nonce verification by WordPress REST API
+     * - X-WP-Nonce header checked automatically
+     *
+     * @param \WP_REST_Request $request REST request object.
+     *
+     * @return bool True if user can manage options, false otherwise.
+     */
     public function check_permissions(\WP_REST_Request $request): bool
     {
         // WordPress REST API automatically handles nonce verification via cookies
@@ -71,11 +138,30 @@ final class BatchEndpoints
         return true;
     }
 
+    /**
+     * Check if user has permission for read-only operations.
+     *
+     * Read-only endpoints (like /stats) require 'read' capability.
+     *
+     * @return bool True if user can read, false otherwise.
+     */
     public function check_read_permissions(): bool
     {
         return current_user_can('read');
     }
 
+    /**
+     * Validate batch requests array.
+     *
+     * Validation:
+     * - Must be array
+     * - Max batch size: 10 requests (DoS protection)
+     * - Each request must have 'method' and 'path'
+     *
+     * @param mixed $requests Batch requests to validate.
+     *
+     * @return bool True if valid, false otherwise.
+     */
     public function validate_requests($requests): bool
     {
         if (!is_array($requests)) {
@@ -96,6 +182,23 @@ final class BatchEndpoints
         return true;
     }
 
+    /**
+     * Handle batch operation request.
+     *
+     * Process:
+     * 1. Validate batch size (max 10)
+     * 2. Check memory availability (min 32MB)
+     * 3. Execute each request sequentially
+     * 4. Collect responses
+     *
+     * Error codes:
+     * - 400: Batch size exceeded
+     * - 503: Insufficient memory
+     *
+     * @param \WP_REST_Request $request REST request with 'requests' param.
+     *
+     * @return \WP_REST_Response Response with results array or error.
+     */
     public function handle_batch(\WP_REST_Request $request): \WP_REST_Response
     {
         $requests = $request->get_param('requests');
@@ -185,6 +288,17 @@ final class BatchEndpoints
         return ['status' => 404, 'body' => ['error' => 'Not found']];
     }
 
+    /**
+     * Handle cache action (flush or warm).
+     *
+     * Actions:
+     * - flush: Clear all cached pages
+     * - warm: Start cache warming process
+     *
+     * @param \WP_REST_Request $request REST request with 'action' param.
+     *
+     * @return \WP_REST_Response Response with success message or error.
+     */
     public function handle_cache_action(\WP_REST_Request $request): \WP_REST_Response
     {
         $action = $request->get_param('action');
@@ -203,6 +317,18 @@ final class BatchEndpoints
         }
     }
 
+    /**
+     * Get SpeedMate statistics.
+     *
+     * Returns:
+     * - All Stats data (hits, misses, hit rate, etc.)
+     * - Cached pages count
+     * - Cache size (bytes and formatted)
+     *
+     * @param \WP_REST_Request $request REST request.
+     *
+     * @return \WP_REST_Response Response with statistics data.
+     */
     public function get_stats(\WP_REST_Request $request): \WP_REST_Response
     {
         $stats = Stats::get();
