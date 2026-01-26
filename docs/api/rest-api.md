@@ -164,7 +164,7 @@ Get plugin information and status.
 **Response:**
 ```json
 {
-  "version": "0.3.1",
+  "version": "0.4.1",
   "status": "active",
   "mode": "beast",
   "cache_dir": "/var/www/html/wp-content/cache/speedmate",
