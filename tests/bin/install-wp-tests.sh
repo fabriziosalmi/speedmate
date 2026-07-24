@@ -28,7 +28,10 @@ POLYFILLS_VERSION="2.0.0"
 POLYFILLS_DIR="/tmp/phpunit-polyfills"
 if [ ! -d "$POLYFILLS_DIR/PHPUnit-Polyfills-${POLYFILLS_VERSION}" ]; then
   mkdir -p "$POLYFILLS_DIR"
-  curl -L -o "$POLYFILLS_DIR/polyfills.tar.gz" "https://github.com/Yoast/PHPUnit-Polyfills/archive/refs/tags/${POLYFILLS_VERSION}.tar.gz"
+  if ! curl -fsSL -o "$POLYFILLS_DIR/polyfills.tar.gz" "https://github.com/Yoast/PHPUnit-Polyfills/archive/refs/tags/${POLYFILLS_VERSION}.tar.gz"; then
+    echo "Error: Failed to download PHPUnit Polyfills ${POLYFILLS_VERSION}" >&2
+    exit 1
+  fi
   tar -xzf "$POLYFILLS_DIR/polyfills.tar.gz" -C "$POLYFILLS_DIR"
 fi
 
@@ -57,6 +60,9 @@ EOF
 
 # Download phpunit phar if missing
 if [ ! -f /tmp/phpunit.phar ]; then
-  curl -L -o /tmp/phpunit.phar https://phar.phpunit.de/phpunit-9.6.22.phar
+  if ! curl -fsSL -o /tmp/phpunit.phar https://phar.phpunit.de/phpunit-9.6.22.phar; then
+    echo "Error: Failed to download PHPUnit PHAR" >&2
+    exit 1
+  fi
   chmod +x /tmp/phpunit.phar
 fi
