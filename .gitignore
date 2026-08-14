@@ -8,3 +8,5 @@ TEST-COVERAGE.md
 docs/node_modules
 issue-*.txt
 .DS_Store
+# Workspace settings
+tmp/
