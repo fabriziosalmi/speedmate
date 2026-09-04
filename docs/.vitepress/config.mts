@@ -25,6 +25,9 @@ export default defineConfig({
   title: "SpeedMate",
   description: "Free WordPress performance plugin with static cache and automation",
   base: '/speedmate/',
+  // The hostname carries the base path on purpose: VitePress joins it with each
+  // page's route, so without it every URL in the sitemap would point at a 404.
+  sitemap: { hostname: 'https://fabriziosalmi.github.io/speedmate/' },
   ignoreDeadLinks: true,
   
   themeConfig: {
