@@ -406,7 +406,7 @@ We use Semantic Versioning (SemVer):
 ### Tools
 
 - [PHPStan](https://phpstan.org/)
-- [PHPCS](https://github.com/squizlabs/PHP_CodeSniffer)
+- [PHPCS](https://github.com/PHPCSStandards/PHP_CodeSniffer)
 - [Composer](https://getcomposer.org/)
 
 ## License
