@@ -165,10 +165,37 @@ The pre-push hook runs PHPUnit and blocks the push if tests fail.
 
 ### Caching
 1. `template_redirect` hook intercepts requests
-2. Cache key: URL + mobile detection + login status
+2. Cache key: the site host and the request path, nothing else
 3. Cached HTML served with `X-SpeedMate-Cache: HIT` header
 4. Output buffering captures HTML on miss
-5. Files stored in `wp-content/cache/speedmate/` with configurable TTL
+5. Files stored in `wp-content/cache/speedmate/<host>/<path>/index.html` with configurable TTL
+
+#### What is not cached
+
+The cache key is the path, so anything that would need a second variant of the
+same page is excluded from caching entirely rather than stored separately:
+
+- **Logged-in users.** Not a variant of the key: `is_cacheable()` returns false
+  for any authenticated request, so logged-in visitors always get a fresh page.
+- **Anything but GET**, and admin, feed, trackback, preview and search requests.
+- **Any request carrying a query string.** This one is worth reading twice: the
+  check is on the presence of a query string, not on its contents. A visitor
+  arriving with `?utm_source=newsletter`, `?fbclid=...` or `?gclid=...` is served
+  an uncached page, and nothing is written to the cache for it. On a site whose
+  traffic comes from newsletters, ads or social links, that is a large share of
+  the visits that reach an uncached page. The single exception is the warming
+  request, whose query string must be exactly `speedmate_warm=1`.
+- **Paths containing anything outside `a-z A-Z 0-9 / - _`.** The cache path is a
+  filesystem path, so it is validated strictly. A permalink with an accented or
+  non-Latin character never produces a cache path and is therefore never cached.
+  Percent-encoded forms do not help: `%` is not in the allowed set either. On a
+  site with permalinks generated from titles in a language that uses accents,
+  this can be most of the site. The only signal is an `invalid_characters_in_path`
+  entry in the log.
+- URLs matching `cache_exclude_urls`, and requests carrying an excluded cookie.
+
+Both of the last two are current limitations rather than intended behaviour:
+see [#38](https://github.com/fabriziosalmi/speedmate/issues/38).
 
 ### JavaScript Delay (Beast Mode)
 1. Script tags receive `type="speedmate/javascript"` (except whitelist)
