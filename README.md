@@ -88,11 +88,12 @@ For user-specific or frequently-changing content within cached pages:
 Dynamic fragments are rendered on every request while the surrounding page remains cached.
 
 ### Security Hardening (Optional)
-Advanced secuFeatures
+Advanced security features available in settings:
 
-- **Structured JSON Logging**: Machine-readable logs
-- **CSP Nonce Injection**: Content Security Policy nonces for inline scripts
-- **REST API Rate Limiting**: 60 requests/minute default, idempotency keys for state change
+- **Structured JSON Logging**: Machine-readable logs for SIEM integration
+- **CSP Nonce Injection**: Automatic Content Security Policy nonces for inline scripts
+- **REST API Protection**: Rate limiting (default: 60 requests/minute) and idempotency keys for state-changing operations
+
 ## Cache Management
 
 ### Manual Cache Clearing
@@ -110,23 +111,28 @@ Cache is automatically invalidated when:
 
 ## Development Setup
 
-### Local Stac
-
 ### Docker Stack
+Start a full WordPress development environment:
 ```bash
 ./scripts/stack-up.sh
 ```
-Starts WordPress, MySQL, and phpMyAdmin on
+This provisions WordPress, MySQL, and phpMyAdmin.
+
+### Test Execution
 Run the complete test suite:
 ```bash
-./scripts/run-tests.sh  # PHPUnit + Playwright E2E
+./scripts/run-tests.sh
 ```
+This executes PHPUnit integration tests (WordPress test framework) and Playwright end-to-end browser tests.
 
-Individual
+Individual test suites:
+```bash
+# PHPUnit only
+composer test
 
 # Playwright E2E only
 cd tests/e2e && npm test
-
+```
 
 ### Code Quality
 Static analysis and coding standards:
@@ -137,22 +143,25 @@ composer phpcs      # PHP_CodeSniffer against WordPress standards
 composer phpstan    # Static analysis at level 8
 ```
 
-```bash
-composer phpcs      # WordPress coding standards
-composer phpstan    # Static analysis
-```
-
 ### Git Hooks
+Enable automatic testing before push:
 ```bash
-git config core.hooksPath .githooks  # Pre-push PHPUnit tests
+git config core.hooksPath .githooks
 ```
+The pre-push hook runs PHPUnit and blocks the push if tests fail.
 
-- `/includes/class-speedmate-lcp.php` - Auto-LCP detection and injection
-- `/admin/` - Settings UI and admin functionality
+## Architecture
 
-### Caching Strategy
-1. Request intercepted via `template_redirect` hook
-2. Implementation
+### File Structure
+- `speedmate.php` - Plugin bootstrap
+- `includes/Plugin.php` - Container wiring and lifecycle
+- `includes/Cache/` - Caching engine: `StaticCache`, `CacheStorage`, `CachePolicy`, `CacheRules`, `CacheTTLManager`, `CacheMetadata`, `DynamicFragments`, `TrafficWarmer`
+- `includes/Perf/` - Optimizations: `BeastMode`, `AutoLCP`, `CriticalCSS`, `PreloadHints`
+- `includes/Media/` - `MediaOptimizer`, `WebPConverter`
+- `includes/Admin/` - Settings UI, admin bar, health widget, import/export
+- `includes/API/` - REST endpoints
+- `includes/CLI/` - WP-CLI commands
+- `includes/Utils/` - Shared services: filesystem, logging, migrations, garbage collection, CSP nonces
 
 ### Caching
 1. `template_redirect` hook intercepts requests
@@ -164,9 +173,19 @@ git config core.hooksPath .githooks  # Pre-push PHPUnit tests
 ### JavaScript Delay (Beast Mode)
 1. Script tags receive `type="speedmate/javascript"` (except whitelist)
 2. User interaction (click/scroll/keypress) triggers execution
-3. Scripts execute in DOM order
+3. Scripts execute in DOM order to preserve dependencies
 4. 5-second fallback timeout
-Access metrics in:
+
+## Performance Metrics
+
+Tracked data:
+- Pages cached
+- Cache hit ratio
+- Time saved estimate
+- Cache size
+- LCP statistics
+
+Access via:
 - SpeedMate → Dashboard
 - WordPress Admin Bar (when logged in)
 - WP-CLI: `wp speedmate stats`
@@ -175,18 +194,19 @@ Access metrics in:
 ## Compatibility
 
 ### Known Compatible Plugins
-- WMetrics
+- WooCommerce (with dynamic fragment support)
+- Easy Digital Downloads
+- MemberPress
+- Contact Form 7
 
-Tracked data:
-- Pages cached
-- Hit ratio
-- Time saved estimate
-- Cache size
-- LCP statistics
+### Known Incompatible Plugins
+- Other full-page caching plugins (WP Super Cache, W3 Total Cache)
+- Plugins that require real-time content on every request without fragment support
 
-Access via:
-- Dashboard widget
-- Admin barche
+## Troubleshooting
+
+### Cache Not Generating
+1. Verify `.htaccess` is writable (Apache)
 2. Check `wp-content/cache/speedmate/` directory exists and is writable
 3. Confirm no conflicting caching plugins are active
 4. Review PHP error logs for permission issues
@@ -198,7 +218,7 @@ Access via:
 4. Disable Beast Mode and report issue if whitelisting doesn't resolve
 
 ### Dynamic Content Not Updating
-1. Verify [speedmate_dynamic] shortcode syntax
+1. Verify `[speedmate_dynamic]` shortcode syntax
 2. Check that dynamic content is within the shortcode wrapper
 3. Flush cache to regenerate pages with updated fragments
 
@@ -208,6 +228,9 @@ Pull requests welcome. Please ensure:
 - Code follows WordPress standards (`composer phpcs`)
 - Static analysis passes (`composer phpstan`)
 
+## Security
+Report security vulnerabilities privately to fabrizio.salmi@gmail.com
+
 ## License
 MIT License. See [LICENSE](LICENSE) for full text.
 
@@ -215,10 +238,3 @@ MIT License. See [LICENSE](LICENSE) for full text.
 - Repository: https://github.com/fabriziosalmi/speedmate
 - Issues: https://github.com/fabriziosalmi/speedmate/issues
 - Releases: https://github.com/fabriziosalmi/speedmate/releases
-require:
-- PHPUnit tests passing
-- WordPress coding standards (`composer phpcs`)
-- PHPStan passing
-
-## Security
-Report vulnerabilities to fabrizio.salmi@gmail.com
